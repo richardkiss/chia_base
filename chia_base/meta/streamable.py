@@ -1,4 +1,4 @@
-from typing import Type, BinaryIO, TypeVar
+from typing import Callable, Type, BinaryIO, TypeVar
 
 import io
 
@@ -6,8 +6,8 @@ from .make_parser import make_parser
 from .make_streamer import make_streamer
 
 
-_T = TypeVar("T")
-_U = TypeVar("U")
+_T = TypeVar("_T")
+_U = TypeVar("_U")
 
 
 class Streamable:
@@ -16,14 +16,17 @@ class Streamable:
         Streamable.__build_stream_and_parse(subclass)
 
     @classmethod
-    def __build_stream_and_parse(cls: Type[_T], subclass: Type[_U]):
+    def __build_stream_and_parse(cls: Type["Streamable"], subclass: Type["Streamable"]):
         """
         Augment the subclass with two dynamically generated methods:
-        _class_stream: Callable[[Type[_T], BinaryIO], None]
+        _class_stream: Callable[[Type[_T], _T, BinaryIO], None]
         _parse: Callable[Type[_T], BinaryIO], _T]
         """
         subclass._class_stream = make_streamer(subclass)
         subclass._parse = make_parser(subclass)
+
+    _class_stream: Callable[[Type[_T], _T, BinaryIO], None]
+    _parse: Callable[[Type[_T], BinaryIO], _T]
 
     @classmethod
     def from_bytes(cls: Type[_T], blob: bytes) -> _T:

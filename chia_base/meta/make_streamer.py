@@ -33,12 +33,10 @@ def serializer_for_list(
     def item_serialize_class_stream(obj, f):
         list_type._class_stream(obj, f)
 
-    if hasattr(list_type, "_class_stream"):
-        item_serialize = list_type._class_stream
-    else:
+    def fallback_item_serialize(obj, f):
+        return obj.stream(f)
 
-        def item_serialize(obj, f):
-            return obj.stream(f)
+    item_serialize = getattr(list_type, "_class_stream", fallback_item_serialize)
 
     def func(obj, f):
         items = getattr(obj, f_name)
@@ -74,6 +72,8 @@ def make_streamer(cls: Type[_T]) -> Callable[[_T, BinaryIO], None]:
     fields = get_type_hints(cls)
 
     for f_name, f_type in fields.items():
+        if f_name.startswith("_"):
+            continue
         streaming_calls.append(serializer_for_type(f_name, f_type))
 
     def streamer(v, f):

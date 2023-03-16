@@ -6,7 +6,7 @@ from .hexbytes import hexbytes
 _T = TypeVar("_T")
 
 
-def make_sized_bytes(size) -> Type[_T]:
+def make_sized_bytes(size) -> Type[bytes]:
     """
     Create a streamable type that subclasses "hexbytes" but requires instances
     to be a certain, fixed size.
@@ -19,15 +19,14 @@ def make_sized_bytes(size) -> Type[_T]:
             raise ValueError("bad %s initializer %s" % (name, v))
         return hexbytes.__new__(self, v)
 
-    @classmethod
-    def parse(cls, f: BinaryIO) -> _T:
+    def parse(cls, f: BinaryIO) -> bytes:
         b = f.read(size)
         assert len(b) == size
         return cls(b)
 
-    @classmethod
-    def _class_stream(cls, obj, f: BinaryIO) -> None:
-        return f.write(obj)
+    def _class_stream(cls: _T, obj: bytes, f: BinaryIO) -> None:
+        assert len(obj) == size
+        f.write(obj)
 
     def __str__(self):
         return self.hex()
@@ -37,8 +36,8 @@ def make_sized_bytes(size) -> Type[_T]:
 
     namespace = dict(
         __new__=__new__,
-        parse=parse,
-        _class_stream=_class_stream,
+        parse=classmethod(parse),
+        _class_stream=classmethod(_class_stream),
         __str__=__str__,
         __repr__=__repr__,
     )

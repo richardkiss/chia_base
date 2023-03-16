@@ -1,9 +1,9 @@
 import struct
 
-from typing import BinaryIO, TypeVar
+from typing import BinaryIO, TypeVar, Type
 
 
-_T = TypeVar("_T")
+_T = TypeVar("_T", bound="struct_stream")
 
 
 class struct_stream:
@@ -15,9 +15,9 @@ class struct_stream:
     PACK: str
 
     @classmethod
-    def parse(cls, f: BinaryIO) -> _T:
+    def parse(cls: Type[_T], f: BinaryIO) -> _T:
         return cls(*struct.unpack(cls.PACK, f.read(struct.calcsize(cls.PACK))))
 
     @classmethod
-    def _class_stream(cls, obj, f: BinaryIO) -> None:
-        return f.write(struct.pack(cls.PACK, obj))
+    def _class_stream(cls: Type[_T], obj: _T, f: BinaryIO) -> None:
+        f.write(struct.pack(cls.PACK, obj))
