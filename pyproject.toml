@@ -1,0 +1,22 @@
+[tool.enscons]
+name = "chia_base"
+description = "Common types and simple utilities used through chia code base"
+authors = ["Richard Kiss <him@richardkiss.com>"]
+license = "Apache-2.0"
+repository = "https://github.com/chia-network/chia_base.git"
+readme = "README.md"
+src_root = "."
+dependencies = ["clvm_rs @ git+https://github.com/Chia-Network/clvm_rs@17196e726b073681dc2c2df14fcff4b5cf6e527b#egg=clvm_rs&subdirectory=wheel"]
+packages = ["chia_base"]
+# version is defined with `setuptools_scm`. See `SConstruct` file.
+
+[tool.enscons.optional_dependencies]
+test = ["nose", "coverage"]
+dev = ["ruff>=0.0.252", "black>=23.1.0"]
+
+[tool.enscons.entry_points]
+console_scripts = []
+
+[build-system]
+requires = ["pytoml>=0.1", "enscons", "setuptools_scm>=6.2"]
+build-backend = "enscons.api"
