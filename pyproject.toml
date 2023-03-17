@@ -6,13 +6,12 @@ license = "Apache-2.0"
 repository = "https://github.com/chia-network/chia_base.git"
 readme = "README.md"
 src_root = "."
-dependencies = ["clvm_rs @ git+https://github.com/Chia-Network/clvm_rs@17196e726b073681dc2c2df14fcff4b5cf6e527b#egg=clvm_rs&subdirectory=wheel"]
+dependencies = ["clvm_rs @ git+https://github.com/Chia-Network/clvm_rs@17196e726b073681dc2c2df14fcff4b5cf6e527b#egg=clvm_rs&subdirectory=wheel", "blspy==1.0.16"]
 packages = ["chia_base"]
 # version is defined with `setuptools_scm`. See `SConstruct` file.
 
 [tool.enscons.optional_dependencies]
-test = ["nose", "coverage"]
-dev = ["ruff>=0.0.252", "black>=23.1.0"]
+dev = ["ruff>=0.0.252", "black>=23.1.0", "pytest>=7.2.1"]
 
 [tool.enscons.entry_points]
 console_scripts = []
