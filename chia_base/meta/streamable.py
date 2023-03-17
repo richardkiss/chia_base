@@ -25,15 +25,15 @@ class Streamable:
         subclass._class_stream = make_streamer(subclass)
         subclass._parse = make_parser(subclass)
 
-    _class_stream: Callable[[Type[_T], _T, BinaryIO], None]
+    _class_stream: Callable[[BinaryIO], None]
     _parse: Callable[[Type[_T], BinaryIO], _T]
 
     @classmethod
-    def from_bytes(cls: Type[_T], blob: bytes) -> _T:
+    def from_bytes(cls: Type["Streamable"], blob: bytes) -> "Streamable":
         return cls.parse(io.BytesIO(blob))
 
     @classmethod
-    def parse(cls: Type[_T], f: BinaryIO) -> _T:
+    def parse(cls: Type["Streamable"], f: BinaryIO) -> "Streamable":
         return cls._parse(cls, f)
 
     def stream(self, f: BinaryIO) -> None:

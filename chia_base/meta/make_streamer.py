@@ -56,7 +56,7 @@ def serializer_for_type(f_name, f_type):
     return build_serializer_with_stream(f_name, f_type.stream)
 
 
-def make_streamer(cls: Type[_T]) -> Callable[[_T, BinaryIO], None]:
+def make_streamer(cls: Type[_T]) -> Callable[[_U, BinaryIO], None]:
     """
     Generate a streamer function by iterating over all members of a class.
     Each member must either respond to `._class_stream` (as a class function),
