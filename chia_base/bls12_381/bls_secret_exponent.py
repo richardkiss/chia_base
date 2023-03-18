@@ -32,6 +32,10 @@ class BLSSecretExponent:
     def from_bytes(cls, blob) -> "BLSSecretExponent":
         return cls(blspy.PrivateKey.from_bytes(blob))
 
+    @classmethod
+    def parse(cls, f: BinaryIO):
+        return cls.from_bytes(f.read(32))
+
     def stream(self, f: BinaryIO) -> None:
         f.write(bytes(self._sk))
 

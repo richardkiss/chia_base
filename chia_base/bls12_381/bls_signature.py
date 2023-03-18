@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Iterator, List, Tuple
+from typing import BinaryIO, Iterator, List, Tuple
 
 import blspy
 
@@ -31,12 +31,19 @@ class BLSSignature:
         return cls(bls_public_hd_key)
 
     @classmethod
+    def parse(cls, f: BinaryIO):
+        return cls.from_bytes(bytes96.parse(f))
+
+    @classmethod
     def generator(cls):
         return cls(blspy.G2Element.generator())
 
     @classmethod
     def zero(cls):
         return cls(blspy.G2Element())
+
+    def stream(self, f):
+        f.write(bytes(self._g2))
 
     def __add__(self, other):
         return self.__class__(self._g2 + other._g2)
