@@ -3,8 +3,11 @@ import hashlib
 from chia_base.atoms import bytes32
 
 
-def std_hash(b) -> bytes32:
+def std_hash(*args: bytes) -> bytes32:
     """
     The standard hash used in many places.
     """
-    return bytes32(hashlib.sha256(bytes(b)).digest())
+    s = hashlib.sha256()
+    for arg in args:
+        s.update(arg)
+    return bytes32(s.digest())

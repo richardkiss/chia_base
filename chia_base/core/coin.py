@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from clvm_rs import Program
+
 from chia_base.atoms.ints import uint64
 from chia_base.atoms.sized_bytes import bytes32
 from chia_base.meta import Streamable
@@ -18,4 +20,6 @@ class Coin(Streamable):
     amount: uint64
 
     def name(self) -> bytes32:
-        return std_hash(bytes(self))
+        return std_hash(
+            self.parent_coin_info, self.puzzle_hash, Program.int_to_bytes(self.amount)
+        )

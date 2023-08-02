@@ -31,6 +31,14 @@ def test_simple():
     hexpected = f"{parent_coin_id.hex()}{puzzle_hash.hex()}{amount:016x}"
     check_rt(coin, hexpected)
 
+    assert coin.name() == std_hash(
+        parent_coin_id, puzzle_hash, Program.int_to_bytes(amount)
+    )
+    assert (
+        coin.name().hex()
+        == "bdd96a13c474043e413a8c4dc8204c60f34e89e735c8b28bc4e16f526bcc6ca3"
+    )
+
     solution = Program.to([1, 2, 3, 4])
     coin_spend = CoinSpend(coin, puzzle, solution)
     cs_hexpected = f"{hexpected}{bytes(puzzle).hex()}{bytes(solution).hex()}"
