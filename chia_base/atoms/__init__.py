@@ -1,6 +1,6 @@
 from .hexbytes import hexbytes
 from .ints import int8, uint8, int16, uint16, int32, uint32, int64, uint64
-from .sized_bytes import bytes32, bytes48, bytes96
+from .sized_bytes import bytes32
 
 
 __all__ = [
@@ -14,6 +14,4 @@ __all__ = [
     "uint64",
     "hexbytes",
     "bytes32",
-    "bytes48",
-    "bytes96",
 ]

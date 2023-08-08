@@ -2,6 +2,7 @@ import io
 
 from clvm_rs import Program
 
+from chia_base.bls12_381.bls_signature import BLSSignature
 from chia_base.core import Coin, CoinSpend, SpendBundle
 from chia_base.util.std_hash import std_hash
 
@@ -44,7 +45,7 @@ def test_simple():
     cs_hexpected = f"{hexpected}{bytes(puzzle).hex()}{bytes(solution).hex()}"
     check_rt(coin_spend, cs_hexpected)
 
-    sig = b"5" * 96
+    sig = BLSSignature.generator()
     spend_bundle = SpendBundle([coin_spend], sig)
-    sb_hexpected = f"00000001{cs_hexpected}{sig.hex()}"
+    sb_hexpected = f"00000001{cs_hexpected}{bytes(sig).hex()}"
     check_rt(spend_bundle, sb_hexpected)

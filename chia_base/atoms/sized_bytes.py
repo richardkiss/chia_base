@@ -25,11 +25,3 @@ class SizedBytes(bytes):
 
 class bytes32(SizedBytes):
     _size = 32
-
-
-class bytes48(SizedBytes):
-    _size = 48
-
-
-class bytes96(SizedBytes):
-    _size = 96

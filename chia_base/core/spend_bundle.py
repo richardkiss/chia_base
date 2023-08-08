@@ -1,9 +1,8 @@
 from dataclasses import dataclass
 from typing import List
 
-from chia_base.atoms import bytes96
+from chia_base.bls12_381.bls_signature import BLSSignature
 from chia_base.meta import Streamable
-
 
 from .coin_spend import CoinSpend
 
@@ -18,7 +17,7 @@ class SpendBundle(Streamable):
     """
 
     coin_spends: List[CoinSpend]
-    aggregated_signature: bytes96
+    aggregated_signature: BLSSignature
 
     def __add__(self, other: "SpendBundle") -> "SpendBundle":
         return self.__class__(

@@ -3,11 +3,11 @@ from typing import BinaryIO, Iterator, List, Tuple
 
 import blspy
 
-from chia_base.atoms import bytes32, bytes96
+from chia_base.atoms import bytes32
 
 from .bls_public_key import BLSPublicKey
 
-ZERO96 = bytes96([0] * 96)
+ZERO96 = bytes([0] * 96)
 
 
 class BLSSignature:
@@ -32,7 +32,7 @@ class BLSSignature:
 
     @classmethod
     def parse(cls, f: BinaryIO):
-        return cls.from_bytes(bytes96.parse(f))
+        return cls.from_bytes(f.read(96))
 
     @classmethod
     def generator(cls):
