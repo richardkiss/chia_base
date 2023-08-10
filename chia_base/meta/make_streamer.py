@@ -30,9 +30,6 @@ def build_serializer_with_stream(
 def serializer_for_list(
     f_name, list_type: Type[_T]
 ) -> Callable[[Type[_T], BinaryIO], None]:
-    def item_serialize_class_stream(obj, f):
-        list_type._class_stream(obj, f)
-
     def fallback_item_serialize(obj, f):
         return obj.stream(f)
 

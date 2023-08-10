@@ -2,7 +2,7 @@ from typing import BinaryIO
 from .hexbytes import hexbytes
 
 
-class SizedBytes(bytes):
+class SizedBytes(hexbytes):
     _size: int
 
     def __new__(cls, v):

@@ -70,7 +70,7 @@ class BLSPublicKey:
     def child_for_path(self, path: List[int]) -> "BLSPublicKey":
         r = self
         for index in path:
-            r = self.child(index)
+            r = r.child(index)
         return r
 
     def fingerprint(self):

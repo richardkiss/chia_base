@@ -1,24 +1,20 @@
 import io
 
+import pytest
+
 from clvm_rs import Program
 
+from chia_base.atoms import bytes32, hexbytes
+from chia_base.bls12_381.bls_public_key import BLSPublicKey
+from chia_base.bls12_381.bls_secret_exponent import BLSSecretExponent
 from chia_base.bls12_381.bls_signature import BLSSignature
 from chia_base.core import Coin, CoinSpend, SpendBundle
 from chia_base.util.std_hash import std_hash
 
 
-def bytes_for_class_streamable(s) -> bytes:
-    f = io.BytesIO()
-    s._class_stream(s, f)
-    return f.getvalue()
-
-
 def test_simple():
     def check_rt(obj, hexpected):
-        try:
-            b = bytes_for_class_streamable(obj)
-        except Exception:
-            b = bytes(obj)
+        b = bytes(obj)
         assert b.hex() == hexpected
         new_obj = obj.__class__.parse(io.BytesIO(b))
         assert obj == new_obj
@@ -49,3 +45,33 @@ def test_simple():
     spend_bundle = SpendBundle([coin_spend], sig)
     sb_hexpected = f"00000001{cs_hexpected}{bytes(sig).hex()}"
     check_rt(spend_bundle, sb_hexpected)
+
+    sb_doubled = spend_bundle + spend_bundle
+    double_sig = sig + sig
+    sb_hexpected = f"00000002{cs_hexpected}{cs_hexpected}{bytes(double_sig).hex()}"
+    check_rt(sb_doubled, sb_hexpected)
+
+    sb2 = SpendBundle.from_bytes(bytes(sb_doubled))
+    assert sb2 == sb_doubled
+
+    sb3 = SpendBundle.fromhex(bytes(sb_doubled).hex())
+    assert sb3 == sb_doubled
+
+
+def test_bytes32():
+    with pytest.raises(ValueError):
+        bytes32(bytes([0] * 33))
+
+
+def test_hexbytes():
+    expected = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+
+    b32 = bytes32(_ for _ in range(32))
+    assert isinstance(b32, hexbytes)
+    assert str(b32) == expected
+    assert repr(b32) == f"<bytes32: {expected}>"
+
+    hb = hexbytes(_ for _ in range(32))
+    assert isinstance(hb, hexbytes)
+    assert str(hb) == expected
+    assert repr(hb) == f"<hexbytes: {expected}>"

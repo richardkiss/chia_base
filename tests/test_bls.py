@@ -1,5 +1,7 @@
 from hashlib import sha256
 
+import io
+
 import pytest
 
 from chia_base.bls12_381 import BLSPublicKey, BLSSecretExponent, BLSSignature
@@ -26,6 +28,17 @@ def try_stuff(g):
     for s in [m1, m2, m3, m4, m9]:
         b = s.as_bech32m()
         assert s == BLSPublicKey.from_bech32m(b)
+
+    f = io.BytesIO()
+    g.stream(f)
+    f1 = io.BytesIO(f.getvalue())
+    pk1 = BLSPublicKey.parse(f1)
+    assert g == pk1
+    assert hash(g) == hash(bytes(g))
+    bech32 = g.as_bech32m()
+    assert str(g) == bech32
+    assert repr(g) == f"<BLSPublicKey: {bech32}>"
+    assert g.child(1).child(2) == g.child_for_path([1, 2])
 
 
 def test_bls_public_key():
@@ -54,8 +67,8 @@ def test_bls_public_key():
 
 
 def test_bls_secret_exponent():
-    se_m = BLSSecretExponent.from_seed(b"foo")
-    ev = "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+    se_m = BLSSecretExponent.from_seed(b"foo" * 11)
+    ev = "340d33cbe8439efc8d56e7ea149a093e74aced305043c12a4acaf879e4b31a9c"
     assert bytes(se_m).hex() == ev
 
     se5 = BLSSecretExponent.from_int(5)
@@ -92,6 +105,21 @@ def test_bls_secret_exponent():
     with pytest.raises(ValueError):
         BLSSecretExponent.from_bech32m("foo")
 
+    for se in [se_m, se5, zero]:
+        f = io.BytesIO()
+        se.stream(f)
+        f1 = io.BytesIO(f.getvalue())
+        se1 = BLSSecretExponent.parse(f1)
+        assert se == se1
+
+        se_str_exp = f"<prv for:{se.public_key().as_bech32m()}>"
+        assert str(se) == se_str_exp
+        assert repr(se) == f"<BLSSecretExponent: {se_str_exp}>"
+
+        lhs = se.child_for_path([1, 2])
+        rhs = se.child(1).child(2)
+        assert lhs == rhs
+
 
 def test_bls_signature():
     se5 = BLSSecretExponent.from_int(5)
@@ -126,3 +154,8 @@ def test_bls_signature():
         "024aa2b2f08f0a91260805272dc51051c6e47ad4fa403b02b4510b647ae3d1770bac0326a805bbefd48056c8c121bdb8"
     )
     assert bytes(BLSSignature.generator()).hex() == ev
+
+    for sig in [sig5, sig7, sig12]:
+        sig_hex = bytes(sig).hex()
+        assert str(sig) == sig_hex
+        assert repr(sig) == f"<BLSSignature: {sig_hex}>"

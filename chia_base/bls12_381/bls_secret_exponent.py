@@ -20,9 +20,8 @@ class BLSSecretExponent:
         self._sk = sk
 
     @classmethod
-    def from_seed(cls, blob: bytes) -> "BLSSecretExponent":
-        secret_exponent = int.from_bytes(std_hash(blob), "big")
-        return cls.from_int(secret_exponent)
+    def from_seed(cls, seed: bytes) -> "BLSSecretExponent":
+        return BLSSecretExponent(blspy.AugSchemeMPL.key_gen(seed))
 
     @classmethod
     def from_int(cls, secret_exponent) -> "BLSSecretExponent":
@@ -68,7 +67,7 @@ class BLSSecretExponent:
     def child_for_path(self, path: List[int]) -> "BLSSecretExponent":
         r = self
         for index in path:
-            r = self.child(index)
+            r = r.child(index)
         return r
 
     def as_bech32m(self):

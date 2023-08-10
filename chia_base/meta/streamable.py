@@ -33,6 +33,10 @@ class Streamable:
         return cls.parse(io.BytesIO(blob))
 
     @classmethod
+    def fromhex(cls: Type["Streamable"], s: str) -> "Streamable":
+        return cls.from_bytes(bytes.fromhex(s))
+
+    @classmethod
     def parse(cls: Type["Streamable"], f: BinaryIO) -> "Streamable":
         return cls._parse(cls, f)
 
