@@ -2,9 +2,6 @@ from typing import BinaryIO, List, Optional
 
 import blspy
 
-from chia_base.atoms import bytes32
-
-from chia_base.util.std_hash import std_hash
 from chia_base.util.bech32 import bech32_decode, bech32_encode, Encoding
 
 from .bls_public_key import BLSPublicKey
@@ -42,13 +39,13 @@ class BLSSecretExponent:
         return self._sk.get_g1().get_fingerprint()
 
     def sign(
-        self, message_hash: bytes32, final_public_key: Optional[BLSPublicKey] = None
+        self, message: bytes, final_public_key: Optional[BLSPublicKey] = None
     ) -> BLSSignature:
         if final_public_key:
             return BLSSignature(
-                blspy.AugSchemeMPL.sign(self._sk, message_hash, final_public_key._g1)
+                blspy.AugSchemeMPL.sign(self._sk, message, final_public_key._g1)
             )
-        return BLSSignature(blspy.AugSchemeMPL.sign(self._sk, message_hash))
+        return BLSSignature(blspy.AugSchemeMPL.sign(self._sk, message))
 
     def public_key(self) -> BLSPublicKey:
         return BLSPublicKey(self._sk.get_g1())

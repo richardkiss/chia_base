@@ -19,7 +19,7 @@ class BLSSignature:
     @dataclass
     class aggsig_pair:
         public_key: BLSPublicKey
-        message_hash: bytes32
+        message_hash: bytes
 
     def __init__(self, g2: blspy.G2Element):
         assert isinstance(g2, blspy.G2Element)
@@ -63,7 +63,7 @@ class BLSSignature:
     def validate(self, hash_key_pairs: Iterator[aggsig_pair]) -> bool:
         return self.verify([(_.public_key, _.message_hash) for _ in hash_key_pairs])
 
-    def verify(self, hash_key_pairs: List[Tuple[BLSPublicKey, bytes32]]) -> bool:
+    def verify(self, hash_key_pairs: List[Tuple[BLSPublicKey, bytes]]) -> bool:
         public_keys: List[blspy.G1Element] = [_[0]._g1 for _ in hash_key_pairs]
         message_hashes: List[bytes32] = [_[1] for _ in hash_key_pairs]
 

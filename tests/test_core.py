@@ -5,8 +5,6 @@ import pytest
 from clvm_rs import Program
 
 from chia_base.atoms import bytes32, hexbytes
-from chia_base.bls12_381.bls_public_key import BLSPublicKey
-from chia_base.bls12_381.bls_secret_exponent import BLSSecretExponent
 from chia_base.bls12_381.bls_signature import BLSSignature
 from chia_base.core import Coin, CoinSpend, SpendBundle
 from chia_base.util.std_hash import std_hash
