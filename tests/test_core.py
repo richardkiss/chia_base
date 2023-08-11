@@ -7,6 +7,7 @@ from clvm_rs import Program
 from chia_base.atoms import bytes32, hexbytes
 from chia_base.bls12_381.bls_signature import BLSSignature
 from chia_base.core import Coin, CoinSpend, SpendBundle
+from chia_base.core import conlang
 from chia_base.util.std_hash import std_hash
 
 
@@ -73,3 +74,26 @@ def test_hexbytes():
     assert isinstance(hb, hexbytes)
     assert str(hb) == expected
     assert repr(hb) == f"<hexbytes: {expected}>"
+
+
+def test_conlang():
+    ev = dict(
+        AGG_SIG_UNSAFE=49,
+        AGG_SIG_ME=50,
+        CREATE_COIN=51,
+        RESERVE_FEE=52,
+        CREATE_COIN_ANNOUNCEMENT=60,
+        ASSERT_COIN_ANNOUNCEMENT=61,
+        CREATE_PUZZLE_ANNOUNCEMENT=62,
+        ASSERT_PUZZLE_ANNOUNCEMENT=63,
+        ASSERT_MY_COIN_ID=70,
+        ASSERT_MY_PARENT_ID=71,
+        ASSERT_MY_PUZZLEHASH=72,
+        ASSERT_MY_AMOUNT=73,
+        ASSERT_SECONDS_RELATIVE=80,
+        ASSERT_SECONDS_ABSOLUTE=81,
+        ASSERT_HEIGHT_RELATIVE=82,
+        ASSERT_HEIGHT_ABSOLUTE=83,
+    )
+    for k, v in ev.items():
+        assert getattr(conlang, k) == v

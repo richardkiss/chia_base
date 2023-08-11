@@ -4,7 +4,7 @@ try:
     from typing import get_args, get_origin
 
 except ImportError:
-
+    # provide python3.7 compatibility
     def get_args(tp: Any) -> Tuple[Any, ...]:
         return getattr(tp, "__args__", ())
 
