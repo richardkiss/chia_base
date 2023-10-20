@@ -16,7 +16,7 @@ def de_str(f: BinaryIO) -> str:
     return de_bytes(f).decode()
 
 
-def fail_de(t, *args):
+def fail_de(t, *args) -> Callable[[BinaryIO], Any]:
     if hasattr(t, "parse"):
         return t.parse
 
@@ -26,7 +26,7 @@ def fail_de(t, *args):
 def de_for_list(origin, args, *etc):
     read_item = type_tree(args[0], *etc)
 
-    def deserialize_list(f: BinaryIO) -> tuple[int, Any]:
+    def deserialize_list(f: BinaryIO) -> list[Any]:
         count = uint32.parse(f)
         return [read_item(f) for _ in range(count)]
 
@@ -36,7 +36,7 @@ def de_for_list(origin, args, *etc):
 def de_for_tuple(origin, args, *etc):
     read_items = [type_tree(_, *etc) for _ in args]
 
-    def deserialize_tuple(f: BinaryIO) -> tuple[int, Any]:
+    def deserialize_tuple(f: BinaryIO) -> tuple[Any, ...]:
         return tuple(_(f) for _ in read_items)
 
     return deserialize_tuple
@@ -47,7 +47,7 @@ def de_for_union(origin, args, *etc):
     if item_type is not None:
         read_item = type_tree(item_type, *etc)
 
-        def deserialize_optional(f: BinaryIO) -> tuple[int, Any]:
+        def deserialize_optional(f: BinaryIO) -> Any:
             v = uint8.parse(f)
             if v == 0:
                 return None

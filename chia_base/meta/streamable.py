@@ -1,15 +1,33 @@
-from typing import List, Type, TypeVar, Callable, BinaryIO, get_type_hints
+from typing import (
+    Any,
+    BinaryIO,
+    GenericAlias,
+    List,
+    Tuple,
+    Type,
+    TypeVar,
+    Callable,
+    get_type_hints,
+)
 
 import io
 
 from chia_base.atoms import uint32
 
-from .make_streamer import make_streamer
-from .type_tree import type_tree
+# from .make_streamer import make_streamer
+from .type_tree import type_tree, TypeTreeMethods
 
 
 _T = TypeVar("_T")
 _U = TypeVar("_U")
+
+ParseFunction = Callable[[BinaryIO], _T]
+
+Streamer = Callable[[_T, BinaryIO], None]
+
+
+class EncodingError:
+    pass
 
 
 class Streamable:
@@ -51,46 +69,35 @@ class Streamable:
         return f.getvalue()
 
 
-def make_parser_for_streamable(cls: Type[_T], *etc) -> Callable[[BinaryIO], _T]:
-    parsing_fs = [
-        parser_for_type(f_type, *etc)
+def make_parser_for_streamable(
+    cls: Type[Streamable], methods: TypeTreeMethods[ParseFunction]
+) -> Callable[[BinaryIO], Streamable]:
+    new_types = tuple(
+        f_type
         for f_name, f_type in get_type_hints(cls).items()
         if not f_name.startswith("_")
-    ]
+    )
 
-    def parser(f: BinaryIO) -> _T:
-        children = [parse_f(f) for parse_f in parsing_fs]
-        return cls(*children)
+    g = GenericAlias(tuple, new_types)
+    tuple_parser = type_tree(g, methods)
+
+    def parser(f: BinaryIO) -> Streamable:
+        args = tuple_parser(f)
+        return cls(*args)
 
     return parser
 
 
-def fail_make_parser(cls: Type[_T], *etc) -> Callable[[BinaryIO], _T]:
-    if issubclass(cls, Streamable):
-        return make_parser_for_streamable(cls, *etc)
-    if hasattr(cls, "parse"):
-        return cls.parse
-    raise ValueError(f"can't create parser for {cls}")
-
-
-def make_parser(cls: Type[_T]) -> Callable[[BinaryIO], _T]:
-    simple_type_lookup: dict[type, _T] = {}
-    compound_type_lookup: dict[type, Callable] = {
-        list: parser_for_list,
-    }
-    other_f = fail_make_parser
-
-    return parser_for_type(cls, simple_type_lookup, compound_type_lookup, other_f)
-
-
 def parser_for_list(
-    origin_type: Type, args_type: List[Type[_T]], *args
-) -> Callable[[BinaryIO], List[_T]]:
+    origin_type: Type,
+    args_type: List[Type[_T]],
+    methods: TypeTreeMethods[ParseFunction],
+) -> ParseFunction:
     """
     Handle the case where we have a list of types that have `.parse`
     """
     subtype: Type[_T] = args_type[0]
-    inner_parse: Callable[[BinaryIO], _T] = parser_for_type(subtype, *args)
+    inner_parse: ParseFunction = type_tree(subtype, methods)
 
     def parse_f(f: BinaryIO) -> List[_T]:
         length = uint32.parse(f)
@@ -99,5 +106,135 @@ def parser_for_list(
     return parse_f
 
 
-def parser_for_type(f_type: Type[_T], *etc) -> Callable[[BinaryIO], _T]:
-    return type_tree(f_type, *etc)
+def parser_for_tuple(
+    origin_type: Type,
+    args_type: List[Type],
+    methods: TypeTreeMethods[ParseFunction],
+) -> ParseFunction[Tuple[Any, ...]]:
+    """
+    Deal with a tuple of types.
+    """
+    subparsers: list[ParseFunction] = [type_tree(_, methods) for _ in args_type]
+
+    def parse_f(f: BinaryIO) -> Tuple[Any, ...]:
+        return tuple(_(f) for _ in subparsers)
+
+    return parse_f
+
+
+def extra_make_parser(
+    cls: Type[Any], methods: TypeTreeMethods[ParseFunction]
+) -> Callable[[BinaryIO], Any]:
+    if issubclass(cls, Streamable):
+        return make_parser_for_streamable(cls, methods)
+    if hasattr(cls, "parse"):
+        return cls.parse
+    raise ValueError(f"can't create parser for {cls}")
+
+
+def make_parser(cls: Type[_T]) -> ParseFunction:
+    simple_type_lookup: dict[type, _T] = {}
+    compound_type_lookup: dict[type, Callable] = {
+        list: parser_for_list,
+        tuple: parser_for_tuple,
+    }
+    methods: TypeTreeMethods[ParseFunction] = TypeTreeMethods(
+        simple_type_lookup, compound_type_lookup, extra_make_parser
+    )
+    return type_tree(cls, methods)
+
+
+def serializer_for_list(
+    f_name: type, list_type: Type[_T], methods: TypeTreeMethods
+) -> Streamer:
+    def fallback_item_serialize(obj, f):
+        return obj.stream(f)
+
+    item_serialize = getattr(list_type, "_class_stream", fallback_item_serialize)
+
+    def func(items, f):
+        uint32._class_stream(len(items), f)
+        for item in items:
+            item_serialize(item, f)
+
+    return func
+
+
+def serializer_for_tuple(
+    f_name, tuple_type: tuple[Type, ...], methods: TypeTreeMethods
+) -> Streamer:
+    serializers = [type_tree(_, methods) for _ in tuple_type]
+
+    def ser(item, f):
+        if len(item) != len(serializers):
+            raise EncodingError("incorrect number of items in tuple")
+
+        for s, v in zip(serializers, item):
+            s(v, f)
+
+    return ser
+
+
+def make_streamer_via_bytes(f_type):
+    def ser(item, f):
+        f.write(bytes(item))
+
+    return ser
+
+
+def extra_make_streamer(f_type, methods: TypeTreeMethods):
+    if hasattr(f_type, "_class_stream"):
+        return f_type._class_stream
+    if issubclass(f_type, Streamable):
+        return make_streamer_for_streamable(f_type, methods)
+    if hasattr(f_type, "__bytes__"):
+        return make_streamer_via_bytes(f_type)
+    raise ValueError(f"can't create streamer for {f_type}")
+
+
+def make_streamer_for_streamable(
+    cls: "Streamable", methods: TypeTreeMethods
+) -> Streamer:
+    """
+    Generate a streamer function by iterating over all members of a class.
+    Each member must either respond to `._class_stream` (as a class function),
+    or `.class_as_bytes` (as a class function), `.stream` (as a member function),
+    or `.__bytes__` (as a member function).
+
+    The advantage of using `.as_bytes` is the object doesn't actually have to
+    be an instance of the class (so you can use an `int` in `int16` and
+    just cast it when it's written).
+    """
+
+    def morph_serializer(ser, field_name: str):
+        def ser_f(v, f):
+            ser(getattr(v, field_name), f)
+
+        return ser_f
+
+    streamers = []
+
+    for f_name, f_type in get_type_hints(cls).items():
+        if f_name.startswith("_"):
+            continue
+        original_serializer = type_tree(f_type, methods)
+
+        streamers.append(morph_serializer(original_serializer, f_name))
+
+    def streamer(v, f):
+        for stream_f in streamers:
+            stream_f(v, f)
+
+    return streamer
+
+
+def make_streamer(cls: Type) -> Streamer:
+    simple_type_lookup: dict[type, Streamer] = {}
+    compound_type_lookup: dict[type, Callable] = {
+        list: serializer_for_list,
+        tuple: serializer_for_tuple,
+    }
+    methods: TypeTreeMethods[Streamer] = TypeTreeMethods(
+        simple_type_lookup, compound_type_lookup, extra_make_streamer
+    )
+    return type_tree(cls, methods)
