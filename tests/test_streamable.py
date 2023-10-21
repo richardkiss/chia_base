@@ -2,11 +2,18 @@ from dataclasses import dataclass
 
 import io
 
+import pytest
+
 from clvm_rs import Program
 
-from chia_base.atoms.ints import int8, int16, uint16, int64, uint64
+from chia_base.atoms.ints import int8, int16, uint16, int32, int64, uint64
 from chia_base.atoms.sized_bytes import bytes32
-from chia_base.meta.streamable import Streamable
+from chia_base.meta.streamable import (
+    Streamable,
+    make_parser,
+    make_streamer,
+    EncodingError,
+)
 
 
 class sbytes(bytes):
@@ -72,18 +79,21 @@ class Minicoin(Streamable):
     amount: uint64
 
 
+@dataclass
+class TupleTest(Streamable):
+    v1: int64
+    v2: tuple[int32, int64, Program]
+
+
 def bytes_for_class_streamable(s) -> bytes:
     f = io.BytesIO()
-    s._class_stream(s, f)
+    s.__class__._class_stream(s, f)
     return f.getvalue()
 
 
 def test_simple():
     def check_rt(obj, hexpected):
-        try:
-            b = bytes_for_class_streamable(obj)
-        except Exception:
-            b = bytes(obj)
+        b = bytes_for_class_streamable(obj)
         assert b.hex() == hexpected
         new_obj = obj.__class__.parse(io.BytesIO(b))
         assert obj == new_obj
@@ -98,3 +108,23 @@ def test_simple():
     check_rt(sbytes(b"Hello there"), "000b48656c6c6f207468657265")
     check_rt(Bytes32(b"0" * 32), "30" * 32)
     check_rt(PWrapper(Program.fromhex("80")), "80")
+    prog = Program.fromhex("ff826869ff85746865726580")
+    hexp = "00000000deadbeef00d5aa96000000000000faceff826869ff85746865726580"
+    check_rt(TupleTest(0xDEADBEEF, (0xD5AA96, 0xFACE, prog)), hexp)
+
+
+def test_failure():
+    with pytest.raises(ValueError):
+        make_parser(str)
+    with pytest.raises(ValueError):
+        make_streamer(str)
+    with pytest.raises(ValueError):
+
+        @dataclass
+        class Fail(Streamable):
+            v: str
+
+    streamer = make_streamer(tuple[uint16, int16])
+    f = io.BytesIO()
+    with pytest.raises(EncodingError):
+        streamer([100], f)

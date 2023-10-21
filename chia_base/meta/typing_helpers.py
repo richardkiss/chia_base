@@ -1,4 +1,5 @@
-from typing import Any, Callable, GenericAlias, Optional, Tuple
+from types import GenericAlias
+from typing import Any, Callable, Optional, Tuple
 
 try:
     from typing import get_args, get_origin
@@ -8,7 +9,7 @@ except ImportError:
     def get_args(tp: Any) -> Tuple[Any, ...]:
         return getattr(tp, "__args__", ())
 
-    def get_origin(tp: Any) -> Optional[Any]:
+    def get_origin(tp: Any) -> Optional[Any]:  # type: ignore
         return getattr(tp, "__origin__", None)
 
 
