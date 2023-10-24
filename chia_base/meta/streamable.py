@@ -121,18 +121,30 @@ def parser_for_tuple(
     return parse_f
 
 
+def parse_bytes(f: BinaryIO) -> bytes:
+    size = uint32.parse(f)
+    return f.read(size)
+
+
+def parse_str(f: BinaryIO) -> str:
+    return parse_bytes(f).decode()
+
+
 def extra_make_parser(
     cls: Gtype, type_tree: TypeTree[ParseFunction]
-) -> Callable[[BinaryIO], Any]:
+) -> None | Callable[[BinaryIO], Any]:
     if isinstance(cls, type) and issubclass(cls, Streamable):
         return make_parser_for_streamable(cls, type_tree)
     if hasattr(cls, "parse"):
         return cls.parse
-    raise ValueError(f"can't create parser for {cls}")
+    return None
 
 
 def make_parser(cls: Type[_T]) -> ParseFunction:
-    simple_type_lookup: dict[Gtype, _T] = {}
+    simple_type_lookup: dict[Gtype, ParseFunction] = {
+        bytes: parse_bytes,
+        str: parse_str,
+    }
     compound_type_lookup: dict[Gtype, Callable] = {
         list: parser_for_list,
         tuple: parser_for_tuple,
@@ -143,6 +155,15 @@ def make_parser(cls: Type[_T]) -> ParseFunction:
     return type_tree(cls)
 
 
+def stream_bytes(blob: bytes, f: BinaryIO) -> None:
+    uint32._class_stream(uint32(len(blob)), f)
+    f.write(blob)
+
+
+def stream_str(s: str, f: BinaryIO) -> None:
+    stream_bytes(s.encode(), f)
+
+
 def streamer_for_list(
     f_name: type, list_type: Type[_T], type_tree: TypeTree
 ) -> StreamFunction:
@@ -151,8 +172,8 @@ def streamer_for_list(
 
     item_stream = getattr(list_type, "_class_stream", fallback_item_stream)
 
-    def func(items, f):
-        uint32._class_stream(len(items), f)
+    def func(items: list, f):
+        uint32._class_stream(uint32(len(items)), f)
         for item in items:
             item_stream(item, f)
 
@@ -184,7 +205,7 @@ def extra_make_streamer(f_type, type_tree: TypeTree):
         return f_type._class_stream
     if hasattr(f_type, "__bytes__"):
         return streamer_from_bytes
-    raise ValueError(f"can't create streamer for {f_type}")
+    return None
 
 
 def make_streamer_for_streamable(
@@ -228,7 +249,11 @@ def make_streamer(cls: Type) -> StreamFunction:
     def self_stream(v, f: BinaryIO, *args):
         v.stream(f)
 
-    simple_type_lookup: dict[Gtype, StreamFunction] = {Program: self_stream}
+    simple_type_lookup: dict[Gtype, StreamFunction] = {
+        Program: self_stream,
+        bytes: stream_bytes,
+        str: stream_str,
+    }
     compound_type_lookup: dict[Gtype, Callable] = {
         list: streamer_for_list,
         tuple: streamer_for_tuple,

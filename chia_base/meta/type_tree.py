@@ -39,4 +39,7 @@ class TypeTree(Generic[T]):
         f = self.simple_type_lookup.get(t)
         if f:
             return f
-        return self.other_handler(t, self)
+        r = self.other_handler(t, self)
+        if r:
+            return r
+        raise ValueError(f"unable to handle type {t}")
