@@ -21,7 +21,6 @@ from .type_tree import Gtype, TypeTree
 _T = TypeVar("_T")
 
 ParseFunction = Callable[[BinaryIO], _T]
-
 StreamFunction = Callable[[_T, BinaryIO], None]
 
 
@@ -38,14 +37,14 @@ class Streamable:
     def __build_stream_and_parse(cls: Type["Streamable"], subclass: Type["Streamable"]):
         """
         Augment the subclass with two dynamically generated methods:
-        _class_stream: Callable[_T, BinaryIO], None]
-        _parse: Callable[Type[_T], BinaryIO], _T]
+        _class_stream: StreamFunction
+        _parse: ParseFunction
         """
         subclass._class_stream = make_streamer(subclass)
         subclass._parse = make_parser(subclass)
 
-    _class_stream: Callable[[Any, BinaryIO], None]
-    _parse: Callable[[BinaryIO], _T]
+    _class_stream: StreamFunction
+    _parse: ParseFunction
 
     @classmethod
     def from_bytes(cls: Type["Streamable"], blob: bytes) -> "Streamable":
@@ -77,7 +76,7 @@ def make_parser_for_streamable(
         if not f_name.startswith("_")
     )
 
-    g: GenericAlias = GenericAlias(tuple, new_types)
+    g: Any = GenericAlias(tuple, new_types)
     tuple_parser = type_tree(g)
 
     def parser(f: BinaryIO) -> Streamable:
@@ -89,13 +88,13 @@ def make_parser_for_streamable(
 
 def parser_for_list(
     origin_type: Type,
-    args_type: List[Type[_T]],
+    args_type: Tuple[Type],
     type_tree: TypeTree[ParseFunction],
 ) -> ParseFunction:
     """
     Deal with a list.
     """
-    subtype: Type[_T] = args_type[0]
+    subtype: Type = args_type[0]
     inner_parse: ParseFunction = type_tree(subtype)
 
     def parse_f(f: BinaryIO) -> List[_T]:
@@ -107,7 +106,7 @@ def parser_for_list(
 
 def parser_for_tuple(
     origin_type: Type,
-    args_type: List[Type],
+    args_type: Tuple[Type],
     type_tree: TypeTree[ParseFunction],
 ) -> ParseFunction[Tuple[Any, ...]]:
     """
@@ -131,8 +130,8 @@ def parse_str(f: BinaryIO) -> str:
 
 
 def extra_make_parser(
-    cls: Gtype, type_tree: TypeTree[ParseFunction]
-) -> None | Callable[[BinaryIO], Any]:
+    cls: type, type_tree: TypeTree[ParseFunction]
+) -> None | ParseFunction:
     if isinstance(cls, type) and issubclass(cls, Streamable):
         return make_parser_for_streamable(cls, type_tree)
     if hasattr(cls, "parse"):
@@ -140,12 +139,14 @@ def extra_make_parser(
     return None
 
 
-def make_parser(cls: Type[_T]) -> ParseFunction:
-    simple_type_lookup: dict[Gtype, ParseFunction] = {
+def make_parser(cls: type) -> ParseFunction:
+    simple_type_lookup: dict[Type, ParseFunction] = {
         bytes: parse_bytes,
         str: parse_str,
     }
-    compound_type_lookup: dict[Gtype, Callable] = {
+    compound_type_lookup: dict[
+        Type, Callable[[Type, Tuple[Type], TypeTree[ParseFunction]], ParseFunction]
+    ] = {
         list: parser_for_list,
         tuple: parser_for_tuple,
     }

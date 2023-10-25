@@ -1,14 +1,23 @@
 from dataclasses import dataclass
 
 from types import GenericAlias
-from typing import Any, Callable, get_origin, get_args, TypeVar, Generic
+from typing import (
+    Any,
+    Callable,
+    get_origin,
+    get_args,
+    Optional,
+    Type,
+    TypeVar,
+    Generic,
+)
 
 
 Gtype = type | GenericAlias
 T = TypeVar("T")
 SimpleTypeLookup = dict[Gtype, T]
 CompoundLookup = dict[Gtype, Callable[[type, tuple[Any, ...], "TypeTree"], T]]
-OtherHandler = Callable[[Gtype, "TypeTree"], T]
+OtherHandler = Callable[[Gtype, "TypeTree"], Optional[T]]
 
 
 @dataclass
@@ -19,9 +28,9 @@ class TypeTree(Generic[T]):
     `other_f`: a function to take a type and return a `T` value
     """
 
-    simple_type_lookup: SimpleTypeLookup
-    compound_lookup: CompoundLookup
-    other_handler: OtherHandler
+    simple_type_lookup: SimpleTypeLookup[T]
+    compound_lookup: CompoundLookup[T]
+    other_handler: OtherHandler[T]
 
     def __call__(self, t: Gtype) -> T:
         """
@@ -34,11 +43,11 @@ class TypeTree(Generic[T]):
         if origin is not None:
             f = self.compound_lookup.get(origin)
             if f:
-                args: tuple[Any, ...] = get_args(t)
+                args: tuple[Type, ...] = get_args(t)
                 return f(origin, args, self)
-        f = self.simple_type_lookup.get(t)
-        if f:
-            return f
+        g = self.simple_type_lookup.get(t)
+        if g:
+            return g
         r = self.other_handler(t, self)
         if r:
             return r
