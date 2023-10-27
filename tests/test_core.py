@@ -13,7 +13,7 @@ from chia_base.core import conlang
 from chia_base.util.std_hash import std_hash
 
 
-from chia_base.meta.serde_chiabin import (
+from chia_base.cbincode import (
     make_parser,
     make_streamer,
 )

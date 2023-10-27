@@ -10,7 +10,7 @@ from chia_base.atoms.ints import int8, int16, uint16, int32, int64, uint64
 from chia_base.atoms.sized_bytes import bytes32
 from chia_base.bls12_381 import BLSSecretExponent
 
-from chia_base.meta.serde_chiabin import (
+from chia_base.cbincode import (
     make_parser,
     make_streamer,
     EncodingError,
