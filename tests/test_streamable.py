@@ -4,13 +4,13 @@ import io
 
 import pytest
 
-from clvm_rs import Program
+from clvm_rs import Program  # type: ignore
 
 from chia_base.atoms.ints import int8, int16, uint16, int32, int64, uint64
 from chia_base.atoms.sized_bytes import bytes32
 from chia_base.bls12_381 import BLSSecretExponent
-from chia_base.meta.streamable import (
-    Streamable,
+
+from chia_base.meta.serde_chiabin import (
     make_parser,
     make_streamer,
     EncodingError,
@@ -18,56 +18,56 @@ from chia_base.meta.streamable import (
 
 
 @dataclass
-class Foo8(Streamable):
+class Foo8:
     v1: int8
 
 
 @dataclass
-class Foo16(Streamable):
+class Foo16:
     v1: int16
 
 
 @dataclass
-class Bytes32(Streamable):
+class Bytes32:
     v1: bytes32
 
 
 @dataclass
-class Compound(Streamable):
+class Compound:
     v1: Foo8
     v2: Foo16
 
 
 @dataclass
-class Str(Streamable):
+class Str:
     v: str
 
 
 @dataclass
-class Bytes(Streamable):
+class Bytes:
     v: bytes
 
 
 @dataclass
-class PWrapper(Streamable):
+class PWrapper:
     p: Program
 
 
 @dataclass
-class Foo1664(Streamable):
+class Foo1664:
     v1: int16
     v2: int64
 
 
 @dataclass
-class Minicoin(Streamable):
+class Minicoin:
     pci: bytes32
     ph: bytes32
     amount: uint64
 
 
 @dataclass
-class TupleTest(Streamable):
+class TupleTest:
     v1: int64
     v2: tuple[int32, int64, Program, str, bytes]
 
@@ -80,9 +80,14 @@ def bytes_for_class_streamable(s) -> bytes:
 
 def test_simple():
     def check_rt(obj, hexpected):
-        b = bytes_for_class_streamable(obj)
+        t = type(obj)
+        stream = make_streamer(t)
+        f = io.BytesIO()
+        stream(obj, f)
+        b = f.getvalue()
         assert b.hex() == hexpected
-        new_obj = obj.__class__.parse(io.BytesIO(b))
+        parse = make_parser(t)
+        new_obj = parse(io.BytesIO(b))
         assert obj == new_obj
 
     check_rt(Foo8(100), "64")
@@ -114,8 +119,8 @@ def test_failure():
     with pytest.raises(ValueError):
 
         @dataclass
-        class Fail(Streamable):
-            v: Unstreamable
+        class Fail:
+            v: Unstreamable  # type: ignore
 
     streamer = make_streamer(tuple[uint16, int16])
     f = io.BytesIO()

@@ -1,6 +1,6 @@
 from typing import BinaryIO, List
 
-import blspy
+import blspy  # type: ignore
 
 from chia_base.atoms import hexbytes
 from chia_base.util.bech32 import bech32_decode, bech32_encode, Encoding

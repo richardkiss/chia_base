@@ -2,13 +2,12 @@ from dataclasses import dataclass
 from typing import List
 
 from chia_base.bls12_381.bls_signature import BLSSignature
-from chia_base.meta import Streamable
 
 from .coin_spend import CoinSpend
 
 
 @dataclass(frozen=True)
-class SpendBundle(Streamable):
+class SpendBundle:
     """
     This is a list of coins being spent along with their solution programs, and a single
     aggregated signature. This is the object that most closely corresponds to a bitcoin

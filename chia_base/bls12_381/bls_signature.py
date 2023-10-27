@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import BinaryIO, Iterator, List, Tuple
 
-import blspy
+import blspy  # type: ignore
 
 from chia_base.atoms import bytes32
 

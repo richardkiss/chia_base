@@ -1,4 +1,4 @@
-import blspy
+import blspy  # type: ignore
 
 
 GROUP_ORDER = (

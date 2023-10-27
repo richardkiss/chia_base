@@ -1,8 +1,10 @@
+from typing import Any
+
 import io
 
 import pytest
 
-from clvm_rs import Program
+from clvm_rs import Program  # type: ignore
 
 from chia_base.atoms import bytes32, hexbytes
 from chia_base.bls12_381.bls_signature import BLSSignature
@@ -11,11 +13,31 @@ from chia_base.core import conlang
 from chia_base.util.std_hash import std_hash
 
 
+from chia_base.meta.serde_chiabin import (
+    make_parser,
+    make_streamer,
+)
+
+
+def from_bytes(cls: type, blob: bytes):
+    parse = make_parser(cls)
+    f = io.BytesIO(blob)
+    return parse(f)
+
+
+def to_bytes(obj: Any):
+    stream = make_streamer(type(obj))
+    f = io.BytesIO()
+    stream(obj, f)
+    return f.getvalue()
+
+
 def test_simple():
     def check_rt(obj, hexpected):
-        b = bytes(obj)
+        b = to_bytes(obj)
         assert b.hex() == hexpected
-        new_obj = obj.__class__.parse(io.BytesIO(b))
+        parse = make_parser(type(obj))
+        new_obj = parse(io.BytesIO(b))
         assert obj == new_obj
 
     parent_coin_id = std_hash(b"1")
@@ -50,11 +72,8 @@ def test_simple():
     sb_hexpected = f"00000002{cs_hexpected}{cs_hexpected}{bytes(double_sig).hex()}"
     check_rt(sb_doubled, sb_hexpected)
 
-    sb2 = SpendBundle.from_bytes(bytes(sb_doubled))
+    sb2 = from_bytes(SpendBundle, to_bytes(sb_doubled))
     assert sb2 == sb_doubled
-
-    sb3 = SpendBundle.fromhex(bytes(sb_doubled).hex())
-    assert sb3 == sb_doubled
 
 
 def test_bytes32():

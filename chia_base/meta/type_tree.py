@@ -2,22 +2,26 @@ from dataclasses import dataclass
 
 from types import GenericAlias
 from typing import (
-    Any,
     Callable,
-    get_origin,
-    get_args,
+    Generic,
     Optional,
+    Tuple,
     Type,
     TypeVar,
-    Generic,
+    Union,
+    cast,
+    get_origin,
+    get_args,
 )
 
 
-Gtype = type | GenericAlias
 T = TypeVar("T")
-SimpleTypeLookup = dict[Gtype, T]
-CompoundLookup = dict[Gtype, Callable[[type, tuple[Any, ...], "TypeTree"], T]]
-OtherHandler = Callable[[Gtype, "TypeTree"], Optional[T]]
+Gtype = Union[Type, GenericAlias]
+ArgsType = Optional[Tuple[Type, ...]]
+OriginArgsType = Tuple[Type, ArgsType]
+SimpleTypeLookup = dict[OriginArgsType, T]
+CompoundLookup = dict[Type, Callable[[Type, ArgsType, "TypeTree[T]"], T]]
+OtherHandler = Callable[[Type, ArgsType, "TypeTree[T]"], Optional[T]]
 
 
 @dataclass
@@ -39,16 +43,24 @@ class TypeTree(Generic[T]):
         This function is helpful for run-time building a complex function that operates
         on a complex type out of simpler functions that operate on base types.
         """
-        origin: None | type = get_origin(t)
-        if origin is not None:
-            f = self.compound_lookup.get(origin)
-            if f:
-                args: tuple[Type, ...] = get_args(t)
-                return f(origin, args, self)
-        g = self.simple_type_lookup.get(t)
+        origin: Type = cast(Type, get_origin(t))
+        args: Optional[Tuple[Type, ...]]
+        if origin is None:
+            origin = t
+            args = None
+        else:
+            args = get_args(t)
+        type_pair = (origin, args)
+        f = self.simple_type_lookup.get(type_pair)
+        if f:
+            return f
+        g = self.compound_lookup.get(origin)
         if g:
-            return g
-        r = self.other_handler(t, self)
+            new_f = g(origin, args, self)
+            self.simple_type_lookup[type_pair] = new_f
+            return new_f
+        r = self.other_handler(origin, args, self)
         if r:
+            self.simple_type_lookup[type_pair] = r
             return r
         raise ValueError(f"unable to handle type {t}")

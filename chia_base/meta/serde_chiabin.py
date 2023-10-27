@@ -10,12 +10,11 @@ from typing import (
     get_type_hints,
 )
 
-import io
 
 from chia_base.atoms import uint32
-from clvm_rs import Program
+from clvm_rs import Program  # type: ignore
 
-from .type_tree import Gtype, TypeTree
+from .type_tree import TypeTree, OriginArgsType, ArgsType
 
 
 _T = TypeVar("_T")
@@ -28,48 +27,9 @@ class EncodingError(Exception):
     pass
 
 
-class Streamable:
-    def __init_subclass__(subclass):
-        super().__init_subclass__()
-        Streamable.__build_stream_and_parse(subclass)
-
-    @classmethod
-    def __build_stream_and_parse(cls: Type["Streamable"], subclass: Type["Streamable"]):
-        """
-        Augment the subclass with two dynamically generated methods:
-        _class_stream: StreamFunction
-        _parse: ParseFunction
-        """
-        subclass._class_stream = make_streamer(subclass)
-        subclass._parse = make_parser(subclass)
-
-    _class_stream: StreamFunction
-    _parse: ParseFunction
-
-    @classmethod
-    def from_bytes(cls: Type["Streamable"], blob: bytes) -> "Streamable":
-        return cls.parse(io.BytesIO(blob))
-
-    @classmethod
-    def fromhex(cls: Type["Streamable"], s: str) -> "Streamable":
-        return cls.from_bytes(bytes.fromhex(s))
-
-    @classmethod
-    def parse(cls: Type["Streamable"], f: BinaryIO) -> "Streamable":
-        return cls._parse(f)
-
-    def stream(self, f: BinaryIO) -> None:
-        return self.__class__._class_stream(self, f)
-
-    def __bytes__(self):
-        f = io.BytesIO()
-        self.stream(f)
-        return f.getvalue()
-
-
-def make_parser_for_streamable(
-    cls: Type[Streamable], type_tree: TypeTree[ParseFunction]
-) -> Callable[[BinaryIO], Streamable]:
+def make_parser_for_class(
+    cls: Type, type_tree: TypeTree[ParseFunction]
+) -> Callable[[BinaryIO], Any]:
     new_types = tuple(
         f_type
         for f_name, f_type in get_type_hints(cls).items()
@@ -79,7 +39,7 @@ def make_parser_for_streamable(
     g: Any = GenericAlias(tuple, new_types)
     tuple_parser = type_tree(g)
 
-    def parser(f: BinaryIO) -> Streamable:
+    def parser(f: BinaryIO) -> Any:
         args = tuple_parser(f)
         return cls(*args)
 
@@ -88,13 +48,18 @@ def make_parser_for_streamable(
 
 def parser_for_list(
     origin_type: Type,
-    args_type: Tuple[Type],
+    args_type: ArgsType,
     type_tree: TypeTree[ParseFunction],
 ) -> ParseFunction:
     """
     Deal with a list.
     """
-    subtype: Type = args_type[0]
+    if args_type is None:
+        raise ValueError("list type not completely specified")
+    if len(args_type) != 1:
+        raise ValueError("list type has too many specifiers")
+
+    subtype = args_type[0]
     inner_parse: ParseFunction = type_tree(subtype)
 
     def parse_f(f: BinaryIO) -> List[_T]:
@@ -106,12 +71,14 @@ def parser_for_list(
 
 def parser_for_tuple(
     origin_type: Type,
-    args_type: Tuple[Type],
+    args_type: ArgsType,
     type_tree: TypeTree[ParseFunction],
 ) -> ParseFunction[Tuple[Any, ...]]:
     """
     Deal with a tuple of types.
     """
+    if args_type is None:
+        raise ValueError("tuple type not completely specified")
     subparsers: list[ParseFunction] = [type_tree(_) for _ in args_type]
 
     def parse_f(f: BinaryIO) -> Tuple[Any, ...]:
@@ -130,22 +97,21 @@ def parse_str(f: BinaryIO) -> str:
 
 
 def extra_make_parser(
-    cls: type, type_tree: TypeTree[ParseFunction]
+    origin: Type, args_type: ArgsType, type_tree: TypeTree[ParseFunction]
 ) -> None | ParseFunction:
-    if isinstance(cls, type) and issubclass(cls, Streamable):
-        return make_parser_for_streamable(cls, type_tree)
-    if hasattr(cls, "parse"):
-        return cls.parse
-    return None
+    if hasattr(origin, "parse"):
+        return origin.parse
+    return make_parser_for_class(origin, type_tree)
 
 
-def make_parser(cls: type) -> ParseFunction:
-    simple_type_lookup: dict[Type, ParseFunction] = {
-        bytes: parse_bytes,
-        str: parse_str,
+def parser_type_tree() -> TypeTree[ParseFunction]:
+    simple_type_lookup: dict[OriginArgsType, ParseFunction] = {
+        (Program, None): Program.parse,
+        (bytes, None): parse_bytes,
+        (str, None): parse_str,
     }
     compound_type_lookup: dict[
-        Type, Callable[[Type, Tuple[Type], TypeTree[ParseFunction]], ParseFunction]
+        Type, Callable[[Type, ArgsType, TypeTree[ParseFunction]], ParseFunction]
     ] = {
         list: parser_for_list,
         tuple: parser_for_tuple,
@@ -153,7 +119,11 @@ def make_parser(cls: type) -> ParseFunction:
     type_tree: TypeTree[ParseFunction] = TypeTree(
         simple_type_lookup, compound_type_lookup, extra_make_parser
     )
-    return type_tree(cls)
+    return type_tree
+
+
+def make_parser(cls: type) -> ParseFunction:
+    return parser_type_tree()(cls)
 
 
 def stream_bytes(blob: bytes, f: BinaryIO) -> None:
@@ -165,13 +135,21 @@ def stream_str(s: str, f: BinaryIO) -> None:
     stream_bytes(s.encode(), f)
 
 
-def streamer_for_list(
-    f_name: type, list_type: Type[_T], type_tree: TypeTree
-) -> StreamFunction:
-    def fallback_item_stream(obj, f: BinaryIO):
-        return obj.stream(f)
+def self_stream(obj, f: BinaryIO, *args):
+    obj.stream(f)
 
-    item_stream = getattr(list_type, "_class_stream", fallback_item_stream)
+
+def streamer_for_list(
+    origin_type: Type,
+    args_type: ArgsType,
+    type_tree: TypeTree[StreamFunction],
+) -> StreamFunction:
+    if args_type is None:
+        raise ValueError("list type not completely specified")
+    if len(args_type) != 1:
+        raise ValueError("list type has too many specifiers")
+    item_type = args_type[0]
+    item_stream = type_tree(item_type)
 
     def func(items: list, f):
         uint32._class_stream(uint32(len(items)), f)
@@ -182,9 +160,13 @@ def streamer_for_list(
 
 
 def streamer_for_tuple(
-    f_name, tuple_type: tuple[Type, ...], type_tree: TypeTree
+    origin_type: Type,
+    args_type: ArgsType,
+    type_tree: TypeTree[StreamFunction],
 ) -> StreamFunction:
-    streamers = [type_tree(_) for _ in tuple_type]
+    if args_type is None:
+        raise ValueError("tuple type not completely specified")
+    streamers = [type_tree(_) for _ in args_type]
 
     def ser(item, f: BinaryIO):
         if len(item) != len(streamers):
@@ -196,25 +178,31 @@ def streamer_for_tuple(
     return ser
 
 
-def extra_make_streamer(f_type, type_tree: TypeTree):
+def extra_make_streamer(
+    origin: Type, args_type: ArgsType, type_tree: TypeTree
+) -> StreamFunction:
     def streamer_from_bytes(v, f: BinaryIO) -> None:
         f.write(bytes(v))
 
-    if issubclass(f_type, Streamable):
-        return make_streamer_for_streamable(f_type, type_tree)
-    if hasattr(f_type, "_class_stream"):
-        return f_type._class_stream
-    if hasattr(f_type, "__bytes__"):
+    if hasattr(origin, "_class_stream"):
+        return origin._class_stream
+    if hasattr(origin, "stream"):
+        return self_stream
+    if hasattr(origin, "__bytes__"):
         return streamer_from_bytes
-    return None
+    if origin is not None:
+        return make_streamer_for_class(origin, type_tree)
 
 
-def make_streamer_for_streamable(
-    cls: "Streamable",
+def make_streamer_for_class(
+    cls: type,
     type_tree: TypeTree,
 ) -> StreamFunction:
     """
     Generate a streamer function by iterating over all members of a class.
+    First, we convert the object to a tuple. Then we serialize the tuple using
+    the existing tuple serializer already written.
+
     Each member must either respond to `._class_stream` (as a class function),
     or `.class_as_bytes` (as a class function), `.stream` (as a member function),
     or `.__bytes__` (as a member function).
@@ -246,20 +234,22 @@ def make_streamer_for_streamable(
     return streamer
 
 
-def make_streamer(cls: Type) -> StreamFunction:
-    def self_stream(v, f: BinaryIO, *args):
-        v.stream(f)
-
-    simple_type_lookup: dict[Gtype, StreamFunction] = {
-        Program: self_stream,
-        bytes: stream_bytes,
-        str: stream_str,
+def streamer_type_tree() -> TypeTree[StreamFunction]:
+    simple_type_lookup: dict[OriginArgsType, StreamFunction] = {
+        (bytes, None): stream_bytes,
+        (str, None): stream_str,
     }
-    compound_type_lookup: dict[Gtype, Callable] = {
+    compound_type_lookup: dict[
+        Type, Callable[[Type, ArgsType, TypeTree[StreamFunction]], StreamFunction]
+    ] = {
         list: streamer_for_list,
         tuple: streamer_for_tuple,
     }
     type_tree: TypeTree[StreamFunction] = TypeTree(
         simple_type_lookup, compound_type_lookup, extra_make_streamer
     )
-    return type_tree(cls)
+    return type_tree
+
+
+def make_streamer(cls: Type) -> StreamFunction:
+    return streamer_type_tree()(cls)
