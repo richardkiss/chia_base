@@ -72,12 +72,6 @@ class TupleTest:
     v2: tuple[int32, int64, Program, str, bytes]
 
 
-def bytes_for_class_streamable(s) -> bytes:
-    f = io.BytesIO()
-    s.__class__._class_stream(s, f)
-    return f.getvalue()
-
-
 def test_simple():
     def check_rt(obj, hexpected):
         t = type(obj)
@@ -108,19 +102,20 @@ def test_simple():
     check_rt(TupleTest(0xDEADBEEF, (0xD5AA96, 0xFACE, prog, "foo", b"bar")), hexp)
 
 
-Unstreamable = set
+class Unstreamable1:
+    pass
 
+
+Unstreamable2 = list
+Unstreamable3 = list[str, bytes]
+Unstreamable4 = tuple
 
 def test_failure():
-    with pytest.raises(ValueError):
-        make_parser(Unstreamable)
-    with pytest.raises(ValueError):
-        make_streamer(Unstreamable)
-    with pytest.raises(ValueError):
-
-        @dataclass
-        class Fail:
-            v: Unstreamable  # type: ignore
+    for U in [Unstreamable1, Unstreamable2, Unstreamable3, Unstreamable4]:
+        with pytest.raises(ValueError):
+            make_parser(U)
+        with pytest.raises(ValueError):
+            make_streamer(U)
 
     streamer = make_streamer(tuple[uint16, int16])
     f = io.BytesIO()

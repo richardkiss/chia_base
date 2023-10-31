@@ -1,3 +1,4 @@
+from dataclasses import fields, is_dataclass
 from typing import (
     Any,
     BinaryIO,
@@ -19,7 +20,6 @@ _T = TypeVar("_T")
 
 ParseFunction = Callable[[BinaryIO], _T]
 StreamFunction = Callable[[_T, BinaryIO], None]
-
 
 
 def stream_bytes(blob: bytes, f: BinaryIO) -> None:
@@ -76,18 +76,14 @@ def streamer_for_tuple(
 
 def extra_make_streamer(
     origin: Type, args_type: ArgsType, type_tree: TypeTree
-) -> StreamFunction:
-    def streamer_from_bytes(v, f: BinaryIO) -> None:
-        f.write(bytes(v))
-
+) -> None | StreamFunction:
     if hasattr(origin, "_class_stream"):
         return origin._class_stream
     if hasattr(origin, "stream"):
         return self_stream
-    if hasattr(origin, "__bytes__"):
-        return streamer_from_bytes
-    if origin is not None:
+    if is_dataclass(origin):
         return make_streamer_for_class(origin, type_tree)
+    return None
 
 
 def make_streamer_for_class(
@@ -116,12 +112,10 @@ def make_streamer_for_class(
 
     streamers = []
 
-    for f_name, f_type in get_type_hints(cls).items():
-        if f_name.startswith("_"):
-            continue
-        original_serializer = type_tree(f_type)
+    for f in fields(cls):
+        original_serializer = type_tree(f.type)
 
-        streamers.append(morph_serializer(original_serializer, f_name))
+        streamers.append(morph_serializer(original_serializer, f.name))
 
     def streamer(v: Any, f: BinaryIO, *args) -> None:
         for stream_f in streamers:

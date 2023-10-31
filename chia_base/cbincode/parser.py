@@ -1,3 +1,4 @@
+from dataclasses import fields, is_dataclass
 from types import GenericAlias
 from typing import (
     Any,
@@ -22,15 +23,10 @@ _T = TypeVar("_T")
 ParseFunction = Callable[[BinaryIO], _T]
 
 
-def make_parser_for_class(
+def make_parser_for_dataclass(
     cls: Type, type_tree: TypeTree[ParseFunction]
 ) -> Callable[[BinaryIO], Any]:
-    new_types = tuple(
-        f_type
-        for f_name, f_type in get_type_hints(cls).items()
-        if not f_name.startswith("_")
-    )
-
+    new_types = tuple(f.type for f in fields(cls))
     g: Any = GenericAlias(tuple, new_types)
     tuple_parser = type_tree(g)
 
@@ -96,7 +92,9 @@ def extra_make_parser(
 ) -> None | ParseFunction:
     if hasattr(origin, "parse"):
         return origin.parse
-    return make_parser_for_class(origin, type_tree)
+    if is_dataclass(origin):
+        return make_parser_for_dataclass(origin, type_tree)
+    return None
 
 
 def parser_type_tree() -> TypeTree[ParseFunction]:
