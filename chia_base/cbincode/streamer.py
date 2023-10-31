@@ -1,10 +1,13 @@
 from dataclasses import fields, is_dataclass
+from types import GenericAlias, UnionType
 from typing import (
     Any,
     BinaryIO,
+    Callable,
+    Optional,
     Type,
     TypeVar,
-    Callable,
+    Union,
     get_type_hints,
 )
 
@@ -14,6 +17,7 @@ from chia_base.atoms import uint32
 from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType
 
 from .error import EncodingError
+from .optional import optional_from_union
 
 
 _T = TypeVar("_T")
@@ -74,6 +78,28 @@ def streamer_for_tuple(
     return ser
 
 
+def streamer_for_union(
+    origin_type: Type,
+    args_type: ArgsType,
+    type_tree: TypeTree[StreamFunction],
+) -> StreamFunction:
+    item_type = optional_from_union(args_type)
+    if item_type is None:
+        raise ValueError(
+            f"only `Optional`-style `Union` types supported, not {args_type}"
+        )
+    streamer = type_tree(item_type)
+
+    def ser(item, f: BinaryIO) -> Any:
+        if item is None:
+            f.write(b"\0")
+        else:
+            f.write(b"\1")
+            streamer(item, f)
+
+    return ser
+
+
 def extra_make_streamer(
     origin: Type, args_type: ArgsType, type_tree: TypeTree
 ) -> None | StreamFunction:
@@ -130,10 +156,12 @@ def streamer_type_tree() -> TypeTree[StreamFunction]:
         (str, None): stream_str,
     }
     compound_type_lookup: dict[
-        Type, Callable[[Type, ArgsType, TypeTree[StreamFunction]], StreamFunction]
+        Any, Callable[[Type, ArgsType, TypeTree[StreamFunction]], StreamFunction]
     ] = {
         list: streamer_for_list,
         tuple: streamer_for_tuple,
+        Union: streamer_for_union,
+        UnionType: streamer_for_union,
     }
     type_tree: TypeTree[StreamFunction] = TypeTree(
         simple_type_lookup, compound_type_lookup, extra_make_streamer

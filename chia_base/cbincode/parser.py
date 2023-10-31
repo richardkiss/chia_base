@@ -1,22 +1,25 @@
 from dataclasses import fields, is_dataclass
-from types import GenericAlias
+from types import GenericAlias, UnionType
 from typing import (
     Any,
     BinaryIO,
+    Callable,
     List,
+    Optional,
     Tuple,
     Type,
     TypeVar,
-    Callable,
+    Union,
     get_type_hints,
 )
 
 
 from chia_base.atoms import uint32
-from clvm_rs import Program  # type: ignore
+from clvm_rs import Program
 
 from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType
 
+from .optional import optional_from_union
 
 _T = TypeVar("_T")
 
@@ -78,6 +81,30 @@ def parser_for_tuple(
     return parse_f
 
 
+def parser_for_union(
+    origin_type: Type,
+    args_type: ArgsType,
+    type_tree: TypeTree[ParseFunction],
+) -> ParseFunction[Optional[Any]]:
+    """
+    Deal with an optional
+    """
+    item_type = optional_from_union(args_type)
+    if item_type is None:
+        raise ValueError(
+            f"only `Optional`-style `Union` types supported, not {args_type}"
+        )
+    parser = type_tree(item_type)
+
+    def parse_f(f: BinaryIO) -> Optional[Any]:
+        is_some = f.read(1)
+        if is_some[0] == 0:
+            return None
+        return parser(f)
+
+    return parse_f
+
+
 def parse_bytes(f: BinaryIO) -> bytes:
     size = uint32.parse(f)
     return f.read(size)
@@ -104,10 +131,12 @@ def parser_type_tree() -> TypeTree[ParseFunction]:
         (str, None): parse_str,
     }
     compound_type_lookup: dict[
-        Type, Callable[[Type, ArgsType, TypeTree[ParseFunction]], ParseFunction]
+        Any, Callable[[Type, ArgsType, TypeTree[ParseFunction]], ParseFunction]
     ] = {
         list: parser_for_list,
         tuple: parser_for_tuple,
+        Union: parser_for_union,
+        UnionType: parser_for_union,
     }
     type_tree: TypeTree[ParseFunction] = TypeTree(
         simple_type_lookup, compound_type_lookup, extra_make_parser

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional, Union
 
 import io
 
@@ -72,6 +73,16 @@ class TupleTest:
     v2: tuple[int32, int64, Program, str, bytes]
 
 
+@dataclass
+class OptionalTest1:
+    v: None | str
+
+
+@dataclass
+class OptionalTest2:
+    v: Optional[str]
+
+
 def test_simple():
     def check_rt(obj, hexpected):
         t = type(obj)
@@ -100,18 +111,26 @@ def test_simple():
         "faceff826869ff8574686572658000000003666f6f00000003626172"
     )
     check_rt(TupleTest(0xDEADBEEF, (0xD5AA96, 0xFACE, prog, "foo", b"bar")), hexp)
+    for OT in [OptionalTest1, OptionalTest2]:
+        check_rt(OT(None), "00")
+        check_rt(OT("foo"), "0100000003666f6f")
 
 
-class Unstreamable1:
+class Unstreamable0:
     pass
 
 
-Unstreamable2 = list
-Unstreamable3 = list[str, bytes]
-Unstreamable4 = tuple
+Unstreamable1 = list
+
+# we know `list[str, bytes]` is an invalid type. That's what we are testing
+Unstreamable2 = list[str, bytes]  # type: ignore
+Unstreamable3 = tuple
+Unstreamable4 = Union[str, bytes]
+
 
 def test_failure():
-    for U in [Unstreamable1, Unstreamable2, Unstreamable3, Unstreamable4]:
+    for v in range(5):
+        U = eval(f"Unstreamable{v}")
         with pytest.raises(ValueError):
             make_parser(U)
         with pytest.raises(ValueError):
