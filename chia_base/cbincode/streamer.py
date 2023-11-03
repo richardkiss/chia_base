@@ -14,7 +14,7 @@ from typing import (
 
 from chia_base.atoms import uint32
 
-from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType
+from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType, Gtype
 
 from .error import EncodingError
 from .optional import optional_from_union
@@ -22,7 +22,6 @@ from .optional import optional_from_union
 
 _T = TypeVar("_T")
 
-ParseFunction = Callable[[BinaryIO], _T]
 StreamFunction = Callable[[_T, BinaryIO], None]
 
 
@@ -169,5 +168,5 @@ def streamer_type_tree() -> TypeTree[StreamFunction]:
     return type_tree
 
 
-def make_streamer(cls: Type) -> StreamFunction:
+def make_streamer(cls: Gtype) -> StreamFunction:
     return streamer_type_tree()(cls)

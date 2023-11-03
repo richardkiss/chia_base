@@ -17,7 +17,7 @@ from typing import (
 from chia_base.atoms import uint32
 from clvm_rs import Program
 
-from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType
+from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType, Gtype
 
 from .optional import optional_from_union
 
@@ -144,5 +144,5 @@ def parser_type_tree() -> TypeTree[ParseFunction]:
     return type_tree
 
 
-def make_parser(cls: type) -> ParseFunction:
+def make_parser(cls: Gtype) -> ParseFunction:
     return parser_type_tree()(cls)
