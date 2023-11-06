@@ -1,3 +1,9 @@
+"""
+Some secret key utilities that need to know the group order and return `blspy`
+structures.
+"""
+
+
 import blspy  # type: ignore
 
 

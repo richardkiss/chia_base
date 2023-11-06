@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import BinaryIO, Iterator, List, Tuple
+from typing import BinaryIO, List, Sequence, Tuple
 
 import blspy  # type: ignore
 
@@ -60,12 +60,15 @@ class BLSSignature:
     def __repr__(self):
         return "<%s: %s>" % (self.__class__.__name__, self)
 
-    def validate(self, hash_key_pairs: Iterator[aggsig_pair]) -> bool:
+    def validate(self, hash_key_pairs: Sequence[aggsig_pair]) -> bool:
+        "check signature"
         return self.verify([(_.public_key, _.message_hash) for _ in hash_key_pairs])
 
-    def verify(self, hash_key_pairs: List[Tuple[BLSPublicKey, bytes]]) -> bool:
-        public_keys: List[blspy.G1Element] = [_[0]._g1 for _ in hash_key_pairs]
-        message_hashes: List[bytes32] = [_[1] for _ in hash_key_pairs]
+    def verify(self, hash_key_pairs: Sequence[Tuple[BLSPublicKey, bytes]]) -> bool:
+        "check signature"
+        hkp = list(hash_key_pairs)
+        public_keys: List[blspy.G1Element] = [_[0]._g1 for _ in hkp]
+        message_hashes: List[bytes32] = [_[1] for _ in hkp]
 
         return blspy.AugSchemeMPL.aggregate_verify(
             public_keys, message_hashes, self._g2

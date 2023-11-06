@@ -8,8 +8,9 @@ _T = TypeVar("_T", bound="struct_stream")
 
 class struct_stream:
     """
-    Create a class that can parse and stream itself based on a struct.pack
-    template string.
+    This is a base class. Subclasses should define `cls.PACK` as a struct.pack
+    template string. In return, you get implementations of `parse` and
+    `_class_stream`.
     """
 
     PACK: str

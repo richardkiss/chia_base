@@ -1,3 +1,7 @@
+"""
+Some ints of fixed size. Their fixed size makes them easier to parse and serialize.
+"""
+
 from .struct_stream import struct_stream
 
 

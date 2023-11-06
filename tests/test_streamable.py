@@ -14,7 +14,6 @@ from chia_base.bls12_381 import BLSSecretExponent
 from chia_base.cbincode import (
     make_parser,
     make_streamer,
-    EncodingError,
 )
 
 
@@ -138,7 +137,7 @@ def test_failure():
 
     streamer = make_streamer(tuple[uint16, int16])
     f = io.BytesIO()
-    with pytest.raises(EncodingError):
+    with pytest.raises(ValueError):
         streamer([100], f)
 
 

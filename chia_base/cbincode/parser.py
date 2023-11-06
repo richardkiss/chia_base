@@ -1,3 +1,15 @@
+"""
+Create a parser function at runtime based on the type passed in. Supported types:
+- `bytes`, `str`
+- any class with a `.parse` class function
+  - this includes, `(u)?int(8|16|32)`, `bytes32`
+- `list[T]` where `T` is supported
+- `tuple[T1, T2, ..., TN]` where each `Tn` is supported
+- `Optional[T]` where `T` is supported (also spelled `T | None`)
+- classes decorated with `@dataclass` where each field is of a supported type
+  (these are essentially converted to a `tuple`)
+"""
+
 from dataclasses import fields, is_dataclass
 from types import GenericAlias, UnionType
 from typing import (
@@ -10,7 +22,6 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    get_type_hints,
 )
 
 

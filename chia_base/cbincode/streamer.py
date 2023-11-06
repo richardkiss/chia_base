@@ -1,14 +1,12 @@
 from dataclasses import fields, is_dataclass
-from types import GenericAlias, UnionType
+from types import UnionType
 from typing import (
     Any,
     BinaryIO,
     Callable,
-    Optional,
     Type,
     TypeVar,
     Union,
-    get_type_hints,
 )
 
 
@@ -16,7 +14,6 @@ from chia_base.atoms import uint32
 
 from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType, Gtype
 
-from .error import EncodingError
 from .optional import optional_from_union
 
 
@@ -69,7 +66,7 @@ def streamer_for_tuple(
 
     def ser(item, f: BinaryIO):
         if len(item) != len(streamers):
-            raise EncodingError("incorrect number of items in tuple")
+            raise ValueError("incorrect number of items in tuple")
 
         for s, v in zip(streamers, item):
             s(v, f)
