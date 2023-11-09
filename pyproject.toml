@@ -1,8 +1,8 @@
 [project]
 name = "chia_base"
 description = "Common types and simple utilities used through chia code base"
-authors = [{name = "Richard Kiss", email="him@richardkiss.com"}]
-license = {text = "Apache-2.0"}
+authors = [{ name = "Richard Kiss", email = "him@richardkiss.com" }]
+license = { text = "Apache-2.0" }
 readme = "README.md"
 dependencies = ["clvm_rs==0.2.5", "blspy==2.0.2"]
 dynamic = ["version"]

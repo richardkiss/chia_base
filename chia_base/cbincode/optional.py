@@ -1,7 +1,9 @@
+from typing import Union, Type
+
 from chia_base.meta.type_tree import ArgsType
 
 
-def optional_from_union(args: ArgsType) -> type | None:
+def optional_from_union(args: ArgsType) -> Union[Type, None]:
     """
     Python typing considers `X | None` and `None | X` to be the same types.
     We normalize unions here and fetch the `X` type, or return `None` if the

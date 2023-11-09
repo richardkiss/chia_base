@@ -1,8 +1,12 @@
 from dataclasses import dataclass
 
-from types import GenericAlias
+try:
+    from types import GenericAlias
+except ImportError:
+    from .py38 import GenericAlias
 from typing import (
     Callable,
+    Dict,
     Generic,
     Optional,
     Tuple,
@@ -19,8 +23,8 @@ T = TypeVar("T")
 Gtype = Union[Type, GenericAlias]
 ArgsType = Optional[Tuple[Type, ...]]
 OriginArgsType = Tuple[Type, ArgsType]
-SimpleTypeLookup = dict[OriginArgsType, T]
-CompoundLookup = dict[Type, Callable[[Type, ArgsType, "TypeTree[T]"], T]]
+SimpleTypeLookup = Dict[OriginArgsType, T]
+CompoundLookup = Dict[Type, Callable[[Type, ArgsType, "TypeTree[T]"], T]]
 OtherHandler = Callable[[Type, ArgsType, "TypeTree[T]"], Optional[T]]
 
 
@@ -50,6 +54,9 @@ class TypeTree(Generic[T]):
             args = None
         else:
             args = get_args(t)
+            # py38 can return `args == ()`
+            if args == ():
+                args = None
         type_pair = (origin, args)
         f = self.simple_type_lookup.get(type_pair)
         if f:

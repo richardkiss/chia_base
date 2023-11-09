@@ -11,11 +11,15 @@ Create a parser function at runtime based on the type passed in. Supported types
 """
 
 from dataclasses import fields, is_dataclass
-from types import GenericAlias, UnionType
+try:
+    from types import GenericAlias, UnionType
+except ImportError:
+    from chia_base.meta.py38 import GenericAlias, UnionType
 from typing import (
     Any,
     BinaryIO,
     Callable,
+    Dict,
     List,
     Optional,
     Tuple,
@@ -127,7 +131,7 @@ def parse_str(f: BinaryIO) -> str:
 
 def extra_make_parser(
     origin: Type, args_type: ArgsType, type_tree: TypeTree[ParseFunction]
-) -> None | ParseFunction:
+) -> Optional[ParseFunction]:
     if hasattr(origin, "parse"):
         return origin.parse
     if is_dataclass(origin):
@@ -136,12 +140,12 @@ def extra_make_parser(
 
 
 def parser_type_tree() -> TypeTree[ParseFunction]:
-    simple_type_lookup: dict[OriginArgsType, ParseFunction] = {
+    simple_type_lookup: Dict[OriginArgsType, ParseFunction] = {
         (Program, None): Program.parse,
         (bytes, None): parse_bytes,
         (str, None): parse_str,
     }
-    compound_type_lookup: dict[
+    compound_type_lookup: Dict[
         Any, Callable[[Type, ArgsType, TypeTree[ParseFunction]], ParseFunction]
     ] = {
         list: parser_for_list,

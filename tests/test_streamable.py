@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import List, Optional, Union, Tuple
 
 import io
 
@@ -69,12 +69,12 @@ class Minicoin:
 @dataclass
 class TupleTest:
     v1: int64
-    v2: tuple[int32, int64, Program, str, bytes]
+    v2: Tuple[int32, int64, Program, str, bytes]
 
 
 @dataclass
 class OptionalTest1:
-    v: None | str
+    v: Optional[str]
 
 
 @dataclass
@@ -119,23 +119,20 @@ class Unstreamable0:
     pass
 
 
-Unstreamable1 = list
-
-# we know `list[str, bytes]` is an invalid type. That's what we are testing
-Unstreamable2 = list[str, bytes]  # type: ignore
-Unstreamable3 = tuple
-Unstreamable4 = Union[str, bytes]
+Unstreamable1 = List
+Unstreamable2 = Union[str, bytes]
+Unstreamable3 = Tuple
 
 
 def test_failure():
-    for v in range(5):
+    for v in range(4):
         U = eval(f"Unstreamable{v}")
         with pytest.raises(ValueError):
             make_parser(U)
         with pytest.raises(ValueError):
             make_streamer(U)
 
-    streamer = make_streamer(tuple[uint16, int16])
+    streamer = make_streamer(Tuple[uint16, int16])
     f = io.BytesIO()
     with pytest.raises(ValueError):
         streamer([100], f)

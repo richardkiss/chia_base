@@ -1,9 +1,13 @@
 from dataclasses import fields, is_dataclass
-from types import UnionType
+try:
+    from types import UnionType
+except ImportError:
+    from chia_base.meta.py38 import UnionType
 from typing import (
     Any,
     BinaryIO,
     Callable,
+    Optional,
     Type,
     TypeVar,
     Union,
@@ -98,7 +102,7 @@ def streamer_for_union(
 
 def extra_make_streamer(
     origin: Type, args_type: ArgsType, type_tree: TypeTree
-) -> None | StreamFunction:
+) -> Optional[StreamFunction]:
     if hasattr(origin, "_class_stream"):
         return origin._class_stream
     if hasattr(origin, "stream"):
