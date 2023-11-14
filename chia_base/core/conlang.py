@@ -1,3 +1,5 @@
+# signature conditions
+
 AGG_SIG_UNSAFE = 49
 AGG_SIG_ME = 50
 
@@ -10,10 +12,12 @@ RESERVE_FEE = 52
 # the conditions below deal with announcements, for inter-coin communication
 
 # coin announcements
+
 CREATE_COIN_ANNOUNCEMENT = 60
 ASSERT_COIN_ANNOUNCEMENT = 61
 
 # puzzle announcements
+
 CREATE_PUZZLE_ANNOUNCEMENT = 62
 ASSERT_PUZZLE_ANNOUNCEMENT = 63
 
@@ -27,9 +31,11 @@ ASSERT_MY_AMOUNT = 73
 # the conditions below ensure that we're "far enough" in the future
 
 # wall-clock time
+
 ASSERT_SECONDS_RELATIVE = 80
 ASSERT_SECONDS_ABSOLUTE = 81
 
 # block index
+
 ASSERT_HEIGHT_RELATIVE = 82
 ASSERT_HEIGHT_ABSOLUTE = 83

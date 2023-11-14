@@ -1,8 +1,22 @@
+"""
+Create a streamer function at runtime based on the type passed in. Supported types:
+- `bytes`, `str`
+- any class with a `._class_stream` class function or `.stream` member function
+  - this includes, `(u)?int(8|16|32)`, `bytes32`
+- `list[T]` where `T` is supported
+- `tuple[T1, T2, ..., TN]` where each `Tn` is supported
+- `Optional[T]` where `T` is supported (also spelled `T | None`)
+- classes decorated with `@dataclass` where each field is of a supported type
+  (these are essentially converted to a `tuple`)
+"""
+
 from dataclasses import fields, is_dataclass
+
 try:
     from types import UnionType
 except ImportError:
-    from chia_base.meta.py38 import UnionType
+    from chia_base.meta.py39 import UnionType  # type: ignore
+
 from typing import (
     Any,
     BinaryIO,
@@ -16,9 +30,8 @@ from typing import (
 
 from chia_base.atoms import uint32
 
+from chia_base.meta.optional import optional_from_union
 from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType, Gtype
-
-from .optional import optional_from_union
 
 
 _T = TypeVar("_T")
@@ -27,15 +40,18 @@ StreamFunction = Callable[[_T, BinaryIO], None]
 
 
 def stream_bytes(blob: bytes, f: BinaryIO) -> None:
+    "create a streamer for `bytes`"
     uint32._class_stream(uint32(len(blob)), f)
     f.write(blob)
 
 
 def stream_str(s: str, f: BinaryIO) -> None:
+    "create a streamer for `str`"
     stream_bytes(s.encode(), f)
 
 
 def self_stream(obj, f: BinaryIO, *args):
+    "create a streamer for types that have a `.stream` method"
     obj.stream(f)
 
 
@@ -44,6 +60,7 @@ def streamer_for_list(
     args_type: ArgsType,
     type_tree: TypeTree[StreamFunction],
 ) -> StreamFunction:
+    "create a streamer for `List[X]` types"
     if args_type is None:
         raise ValueError("list type not completely specified")
     if len(args_type) != 1:
@@ -64,6 +81,7 @@ def streamer_for_tuple(
     args_type: ArgsType,
     type_tree: TypeTree[StreamFunction],
 ) -> StreamFunction:
+    "create a streamer for `Tuple[X, ...]` types"
     if args_type is None:
         raise ValueError("tuple type not completely specified")
     streamers = [type_tree(_) for _ in args_type]
@@ -83,6 +101,7 @@ def streamer_for_union(
     args_type: ArgsType,
     type_tree: TypeTree[StreamFunction],
 ) -> StreamFunction:
+    "create a streamer for an `Optional[X]`"
     item_type = optional_from_union(args_type)
     if item_type is None:
         raise ValueError(
@@ -100,19 +119,7 @@ def streamer_for_union(
     return ser
 
 
-def extra_make_streamer(
-    origin: Type, args_type: ArgsType, type_tree: TypeTree
-) -> Optional[StreamFunction]:
-    if hasattr(origin, "_class_stream"):
-        return origin._class_stream
-    if hasattr(origin, "stream"):
-        return self_stream
-    if is_dataclass(origin):
-        return make_streamer_for_class(origin, type_tree)
-    return None
-
-
-def make_streamer_for_class(
+def streamer_for_dataclass(
     cls: type,
     type_tree: TypeTree,
 ) -> StreamFunction:
@@ -120,14 +127,6 @@ def make_streamer_for_class(
     Generate a streamer function by iterating over all members of a class.
     First, we convert the object to a tuple. Then we serialize the tuple using
     the existing tuple serializer already written.
-
-    Each member must either respond to `._class_stream` (as a class function),
-    or `.class_as_bytes` (as a class function), `.stream` (as a member function),
-    or `.__bytes__` (as a member function).
-
-    The advantage of using `.as_bytes` is the object doesn't actually have to
-    be an instance of the class (so you can use an `int` in `int16` and
-    just cast it when it's written).
     """
 
     def morph_serializer(ser, field_name: str):
@@ -150,7 +149,27 @@ def make_streamer_for_class(
     return streamer
 
 
+def extra_streamers(
+    origin: Type, args_type: ArgsType, type_tree: TypeTree
+) -> Optional[StreamFunction]:
+    """
+    deal with `dataclass` objects and objects that have a `.stream` object method
+    or a `._class_stream` class method
+    """
+    if hasattr(origin, "_class_stream"):
+        return origin._class_stream
+    if hasattr(origin, "stream"):
+        return self_stream
+    if is_dataclass(origin):
+        return streamer_for_dataclass(origin, type_tree)
+    return None
+
+
 def streamer_type_tree() -> TypeTree[StreamFunction]:
+    """
+    Return a `TypeTree[StreamFunction]` that's able to create `cbincode` streamer
+    for many different types.
+    """
     simple_type_lookup: dict[OriginArgsType, StreamFunction] = {
         (bytes, None): stream_bytes,
         (str, None): stream_str,
@@ -164,10 +183,11 @@ def streamer_type_tree() -> TypeTree[StreamFunction]:
         UnionType: streamer_for_union,
     }
     type_tree: TypeTree[StreamFunction] = TypeTree(
-        simple_type_lookup, compound_type_lookup, extra_make_streamer
+        simple_type_lookup, compound_type_lookup, extra_streamers
     )
     return type_tree
 
 
 def make_streamer(cls: Gtype) -> StreamFunction:
+    "return a parser for `cls`"
     return streamer_type_tree()(cls)

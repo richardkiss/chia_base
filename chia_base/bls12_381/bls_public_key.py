@@ -16,6 +16,7 @@ class BLSPublicKey:
     when serialized by a 48-byte x element (with a few extra bits at the
     beginning for metadata).
     """
+
     def __init__(self, g1: blspy.G1Element):
         assert isinstance(g1, blspy.G1Element)
         self._g1 = g1

@@ -11,10 +11,17 @@ Create a parser function at runtime based on the type passed in. Supported types
 """
 
 from dataclasses import fields, is_dataclass
+
 try:
-    from types import GenericAlias, UnionType
+    from types import GenericAlias
 except ImportError:
-    from chia_base.meta.py38 import GenericAlias, UnionType
+    from chia_base.meta.py38 import GenericAlias  # type: ignore
+
+try:
+    from types import UnionType
+except ImportError:
+    from chia_base.meta.py39 import UnionType  # type: ignore
+
 from typing import (
     Any,
     BinaryIO,
@@ -30,29 +37,26 @@ from typing import (
 
 
 from chia_base.atoms import uint32
-from clvm_rs import Program
+from clvm_rs import Program  # type: ignore
 
+from chia_base.meta.optional import optional_from_union
 from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType, Gtype
 
-from .optional import optional_from_union
 
 _T = TypeVar("_T")
 
 ParseFunction = Callable[[BinaryIO], _T]
 
 
-def make_parser_for_dataclass(
-    cls: Type, type_tree: TypeTree[ParseFunction]
-) -> Callable[[BinaryIO], Any]:
-    new_types = tuple(f.type for f in fields(cls))
-    g: Any = GenericAlias(tuple, new_types)
-    tuple_parser = type_tree(g)
+def parse_bytes(f: BinaryIO) -> bytes:
+    "a parser for `bytes`"
+    size = uint32.parse(f)
+    return f.read(size)
 
-    def parser(f: BinaryIO) -> Any:
-        args = tuple_parser(f)
-        return cls(*args)
 
-    return parser
+def parse_str(f: BinaryIO) -> str:
+    "a parser for `str`"
+    return parse_bytes(f).decode()
 
 
 def parser_for_list(
@@ -60,9 +64,7 @@ def parser_for_list(
     args_type: ArgsType,
     type_tree: TypeTree[ParseFunction],
 ) -> ParseFunction:
-    """
-    Deal with a list.
-    """
+    "create a parser for a `List[X]`"
     if args_type is None:
         raise ValueError("list type not completely specified")
     if len(args_type) != 1:
@@ -83,9 +85,7 @@ def parser_for_tuple(
     args_type: ArgsType,
     type_tree: TypeTree[ParseFunction],
 ) -> ParseFunction[Tuple[Any, ...]]:
-    """
-    Deal with a tuple of types.
-    """
+    "create a parser for a `Tuple[X, ...]`"
     if args_type is None:
         raise ValueError("tuple type not completely specified")
     subparsers: list[ParseFunction] = [type_tree(_) for _ in args_type]
@@ -101,9 +101,7 @@ def parser_for_union(
     args_type: ArgsType,
     type_tree: TypeTree[ParseFunction],
 ) -> ParseFunction[Optional[Any]]:
-    """
-    Deal with an optional
-    """
+    "create a parser for an `Optional[X]`"
     item_type = optional_from_union(args_type)
     if item_type is None:
         raise ValueError(
@@ -120,26 +118,37 @@ def parser_for_union(
     return parse_f
 
 
-def parse_bytes(f: BinaryIO) -> bytes:
-    size = uint32.parse(f)
-    return f.read(size)
+def parser_for_dataclass(
+    cls: Type, type_tree: TypeTree[ParseFunction]
+) -> ParseFunction:
+    "create a parser for the given `dataclass`"
+    new_types = tuple(f.type for f in fields(cls))
+    g: Any = GenericAlias(tuple, new_types)
+    tuple_parser = type_tree(g)
+
+    def parser(f: BinaryIO) -> Any:
+        args = tuple_parser(f)
+        return cls(*args)
+
+    return parser
 
 
-def parse_str(f: BinaryIO) -> str:
-    return parse_bytes(f).decode()
-
-
-def extra_make_parser(
+def extra_parsers(
     origin: Type, args_type: ArgsType, type_tree: TypeTree[ParseFunction]
 ) -> Optional[ParseFunction]:
+    "deal with `dataclass` objects and objects that have a `.parse` class method"
     if hasattr(origin, "parse"):
         return origin.parse
     if is_dataclass(origin):
-        return make_parser_for_dataclass(origin, type_tree)
+        return parser_for_dataclass(origin, type_tree)
     return None
 
 
 def parser_type_tree() -> TypeTree[ParseFunction]:
+    """
+    Return a `TypeTree[ParseFunction]` that's able to create `cbincode` parser
+    for many different types.
+    """
     simple_type_lookup: Dict[OriginArgsType, ParseFunction] = {
         (Program, None): Program.parse,
         (bytes, None): parse_bytes,
@@ -154,10 +163,11 @@ def parser_type_tree() -> TypeTree[ParseFunction]:
         UnionType: parser_for_union,
     }
     type_tree: TypeTree[ParseFunction] = TypeTree(
-        simple_type_lookup, compound_type_lookup, extra_make_parser
+        simple_type_lookup, compound_type_lookup, extra_parsers
     )
     return type_tree
 
 
 def make_parser(cls: Gtype) -> ParseFunction:
+    "return a parser for `cls`"
     return parser_type_tree()(cls)

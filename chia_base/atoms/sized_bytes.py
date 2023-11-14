@@ -9,9 +9,11 @@ class SizedBytes(hexbytes):
 
     Having a specific number of bytes means we can easily parse and stream
     """
+
     _size: int
 
     def __new__(cls, v):
+        "`v` must be castable to `bytes`"
         v = bytes(v)
         if not isinstance(v, bytes) or len(v) != cls._size:
             raise ValueError("bad %s initializer %s" % (cls.__name__, v))
@@ -37,4 +39,5 @@ class bytes32(SizedBytes):
     """
     A subclass of `bytes` that requires the length to be 32.
     """
+
     _size = 32

@@ -13,10 +13,12 @@ GROUP_ORDER = (
 
 
 def private_key_from_int(secret_exponent: int) -> blspy.PrivateKey:
+    "convert an `int` into the `blspy.PrivateKey`"
     secret_exponent %= GROUP_ORDER
     blob = secret_exponent.to_bytes(32, "big")
     return blspy.PrivateKey.from_bytes(blob)
 
 
 def public_key_from_int(secret_exponent: int) -> blspy.G1Element:
+    "convert an `int` into the corresponding `blspy.G1Element` multiple of generator"
     return private_key_from_int(secret_exponent).get_g1()

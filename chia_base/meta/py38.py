@@ -1,5 +1,5 @@
-from typing import _GenericAlias, Union
+""" `GenericAlias` was introduced in python 3.9 """
 
-GenericAlias = _GenericAlias
-UnionType = Union
+from typing import _GenericAlias as GenericAlias   # type: ignore
 
+__all__ = ["GenericAlias"]

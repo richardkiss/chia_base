@@ -27,25 +27,31 @@ class BLSSignature:
 
     @classmethod
     def from_bytes(cls, blob):
+        "parse from a binary blob"
         bls_public_hd_key = blspy.G2Element.from_bytes(blob)
         return cls(bls_public_hd_key)
 
     @classmethod
     def parse(cls, f: BinaryIO):
+        "parse from a stream"
         return cls.from_bytes(f.read(96))
 
     @classmethod
     def generator(cls):
+        "return the well-known generator"
         return cls(blspy.G2Element.generator())
 
     @classmethod
     def zero(cls):
+        "returns the g2 element corresponding to 0. This shouldn't be used to sign"
         return cls(blspy.G2Element())
 
     def stream(self, f):
+        "write the serialized version to the file f"
         f.write(bytes(self._g2))
 
     def __add__(self, other):
+        "add two elements, returning the sum. Use `+`"
         return self.__class__(self._g2 + other._g2)
 
     def __eq__(self, other):
