@@ -10,11 +10,15 @@ from clvm_rs import Program  # type: ignore
 from chia_base.atoms.ints import int8, int16, uint16, int32, int64, uint64
 from chia_base.atoms.sized_bytes import bytes32
 from chia_base.bls12_381 import BLSSecretExponent
-
 from chia_base.cbincode import (
+    from_bytes,
+    from_hex,
     make_parser,
     make_streamer,
+    to_bytes,
+    to_hex,
 )
+from chia_base.meta.typing import GenericAlias
 
 
 @dataclass
@@ -122,10 +126,11 @@ class Unstreamable0:
 Unstreamable1 = List
 Unstreamable2 = Union[str, bytes]
 Unstreamable3 = Tuple
+Unstreamable4 = GenericAlias(list, (str, bytes))
 
 
 def test_failure():
-    for v in range(4):
+    for v in range(5):
         U = eval(f"Unstreamable{v}")
         with pytest.raises(ValueError):
             make_parser(U)
@@ -136,6 +141,13 @@ def test_failure():
     f = io.BytesIO()
     with pytest.raises(ValueError):
         streamer([100], f)
+
+    f = io.BytesIO(b"foo")
+    with pytest.raises(ValueError):
+        bytes32.parse(f)
+
+    with pytest.raises(ValueError):
+        bytes32._class_stream(b"foo", f)
 
 
 def test_bls_sig():
@@ -148,3 +160,23 @@ def test_bls_sig():
         "6d0ef9822ae2b1544e7884e40eeffcefba6dd43caf618a151644e068755eee5f1096718f"
         "0c0f4c4c0ebe00103e875ac740b0d49910135a51f4e4e9ec"
     )
+
+
+def test_utils():
+    @dataclass
+    class Foo:
+        a: int16
+        b: str
+
+    expected_hex = "006400000003666f6f"
+
+    u = Foo(100, "foo")
+    b = to_bytes(u)
+    assert b.hex() == expected_hex
+    v = from_bytes(Foo, b)
+    assert v == u
+
+    h = to_hex(u)
+    assert h == expected_hex
+    v = from_hex(Foo, h)
+    assert v == u

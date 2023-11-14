@@ -12,16 +12,6 @@ Create a parser function at runtime based on the type passed in. Supported types
 
 from dataclasses import fields, is_dataclass
 
-try:
-    from types import GenericAlias
-except ImportError:
-    from chia_base.meta.py38 import GenericAlias  # type: ignore
-
-try:
-    from types import UnionType
-except ImportError:
-    from chia_base.meta.py39 import UnionType  # type: ignore
-
 from typing import (
     Any,
     BinaryIO,
@@ -35,12 +25,12 @@ from typing import (
     Union,
 )
 
-
-from chia_base.atoms import uint32
 from clvm_rs import Program  # type: ignore
 
+from chia_base.atoms import uint32
 from chia_base.meta.optional import optional_from_union
 from chia_base.meta.type_tree import TypeTree, OriginArgsType, ArgsType, Gtype
+from chia_base.meta.typing import GenericAlias, UnionType
 
 
 _T = TypeVar("_T")

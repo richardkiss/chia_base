@@ -65,6 +65,11 @@ def test_bls_public_key():
     with pytest.raises(ValueError):
         BLSPublicKey.from_bech32m("foo")
 
+    with pytest.raises(ValueError):
+        zero * -20
+
+    # check equality against foreign types fails
+    assert not zero == 0
 
 def test_bls_secret_exponent():
     se_m = BLSSecretExponent.from_seed(b"foo" * 11)

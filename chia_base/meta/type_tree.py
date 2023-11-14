@@ -2,8 +2,8 @@ from dataclasses import dataclass
 
 try:
     from types import GenericAlias
-except ImportError:
-    from .py38 import GenericAlias
+except ImportError:  # pragma: no cover
+    from .py38 import GenericAlias  # type: ignore
 from typing import (
     Callable,
     Dict,
