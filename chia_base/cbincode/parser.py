@@ -78,7 +78,7 @@ def parser_for_tuple(
     "create a parser for a `Tuple[X, ...]`"
     if args_type is None:
         raise ValueError("tuple type not completely specified")
-    subparsers: list[ParseFunction] = [type_tree(_) for _ in args_type]
+    subparsers: List[ParseFunction] = [type_tree(_) for _ in args_type]
 
     def parse_f(f: BinaryIO) -> Tuple[Any, ...]:
         return tuple(_(f) for _ in subparsers)
