@@ -16,6 +16,7 @@ from typing import (
     Any,
     BinaryIO,
     Callable,
+    Dict,
     Optional,
     Type,
     TypeVar,
@@ -166,11 +167,11 @@ def streamer_type_tree() -> TypeTree[StreamFunction]:
     Return a `TypeTree[StreamFunction]` that's able to create `cbincode` streamer
     for many different types.
     """
-    simple_type_lookup: dict[OriginArgsType, StreamFunction] = {
+    simple_type_lookup: Dict[OriginArgsType, StreamFunction] = {
         (bytes, None): stream_bytes,
         (str, None): stream_str,
     }
-    compound_type_lookup: dict[
+    compound_type_lookup: Dict[
         Any, Callable[[Type, ArgsType, TypeTree[StreamFunction]], StreamFunction]
     ] = {
         list: streamer_for_list,
