@@ -1,5 +1,5 @@
 """
-The `blspy` wheel has some rough edges in its api. This module smooths them over
+The `chia_rs` wheel has some rough edges in its api. This module smooths them over
 with a more ergonomic api.
 """
 

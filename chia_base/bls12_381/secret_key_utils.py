@@ -1,10 +1,10 @@
 """
-Some secret key utilities that need to know the group order and return `blspy`
+Some secret key utilities that need to know the group order and return `chia_rs`
 structures.
 """
 
 
-import blspy  # type: ignore
+import chia_rs  # type: ignore
 
 
 GROUP_ORDER = (
@@ -12,13 +12,13 @@ GROUP_ORDER = (
 )
 
 
-def private_key_from_int(secret_exponent: int) -> blspy.PrivateKey:
-    "convert an `int` into the `blspy.PrivateKey`"
+def private_key_from_int(secret_exponent: int) -> chia_rs.PrivateKey:
+    "convert an `int` into the `chia_rs.PrivateKey`"
     secret_exponent %= GROUP_ORDER
     blob = secret_exponent.to_bytes(32, "big")
-    return blspy.PrivateKey.from_bytes(blob)
+    return chia_rs.PrivateKey.from_bytes(blob)
 
 
-def public_key_from_int(secret_exponent: int) -> blspy.G1Element:
-    "convert an `int` into the corresponding `blspy.G1Element` multiple of generator"
+def public_key_from_int(secret_exponent: int) -> chia_rs.G1Element:
+    "convert an `int` into the corresponding `chia_rs.G1Element` multiple of generator"
     return private_key_from_int(secret_exponent).get_g1()
