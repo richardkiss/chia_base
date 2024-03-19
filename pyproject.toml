@@ -4,7 +4,7 @@ description = "Common types and simple utilities used through chia code base"
 authors = [{ name = "Richard Kiss", email = "him@richardkiss.com" }]
 license = { text = "Apache-2.0" }
 readme = "README.md"
-dependencies = ["clvm_rs==0.2.5", "blspy==2.0.2"]
+dependencies = ["clvm_rs==0.2.5", "chia_rs==0.5.2"]
 dynamic = ["version"]
 
 # version is defined with `setuptools_scm`. See `SConstruct` file.

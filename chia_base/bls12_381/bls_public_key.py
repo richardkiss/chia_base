@@ -1,6 +1,6 @@
 from typing import BinaryIO, List
 
-import blspy  # type: ignore
+import chia_rs  # type: ignore
 
 from chia_base.atoms import hexbytes
 from chia_base.util.bech32 import bech32_decode, bech32_encode, Encoding
@@ -16,15 +16,14 @@ class BLSPublicKey:
     when serialized by a 48-byte x element (with a few extra bits at the
     beginning for metadata).
     """
-
-    def __init__(self, g1: blspy.G1Element):
-        assert isinstance(g1, blspy.G1Element)
+    def __init__(self, g1: chia_rs.G1Element):
+        assert isinstance(g1, chia_rs.G1Element)
         self._g1 = g1
 
     @classmethod
     def from_bytes(cls, blob):
         "parse from a binary blob"
-        bls_public_hd_key = blspy.G1Element.from_bytes(blob)
+        bls_public_hd_key = chia_rs.G1Element.from_bytes(blob)
         return BLSPublicKey(bls_public_hd_key)
 
     @classmethod
@@ -35,12 +34,12 @@ class BLSPublicKey:
     @classmethod
     def generator(cls):
         "return the well-known generator"
-        return BLSPublicKey(blspy.G1Element.generator())
+        return BLSPublicKey(chia_rs.G1Element.generator())
 
     @classmethod
     def zero(cls):
         "return the well-known zero"
-        return cls(blspy.G1Element())
+        return cls(chia_rs.G1Element())
 
     def stream(self, f: BinaryIO) -> None:
         "write the serialized version to the file f"
@@ -55,7 +54,7 @@ class BLSPublicKey:
         if other < 0:
             raise ValueError("can't multiply by a negative value")
         if self == self.generator():
-            # there is a special method in blspy that multiplies
+            # there is a special method in chia_rs that multiplies
             # the generator by an integer that is not susceptible to
             # timing attacks. Since public keys are generate times integer,
             # using this method with the generator could expose to timing
@@ -88,7 +87,7 @@ class BLSPublicKey:
     def child(self, index: int) -> "BLSPublicKey":
         "unhardened child derivation"
         return BLSPublicKey(
-            blspy.AugSchemeMPL.derive_child_pk_unhardened(self._g1, index)
+            chia_rs.AugSchemeMPL.derive_child_pk_unhardened(self._g1, index)
         )
 
     def child_for_path(self, path: List[int]) -> "BLSPublicKey":
